@@ -9,6 +9,7 @@ export type MediaKind = "audio" | "video";
 
 export type MediaItem = {
   id: string;
+  remoteId?: string;
   title: string;
   artist: string;
   kind: MediaKind;

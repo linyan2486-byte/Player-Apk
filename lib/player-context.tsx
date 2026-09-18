@@ -10,11 +10,14 @@ import {
   removeLocalMedia,
   saveMediaLibrary,
 } from "@/lib/media-library";
+import { syncRemoteCatalog } from "@/lib/catalog-sync";
 
 const QUEUE_KEY = "@player-apk/queue/v1";
+const CATALOG_URL_KEY = "@player-apk/catalog-url/v1";
 
 type PlayerContextValue = {
   library: MediaItem[];
+  catalogUrl: string;
   hydrated: boolean;
   currentMedia: MediaItem | null;
   queueIds: string[];
@@ -28,6 +31,7 @@ type PlayerContextValue = {
   importMedia: () => Promise<number>;
   deleteMedia: (id: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
+  syncCatalog: (url: string) => Promise<number>;
 };
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -38,6 +42,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [shouldAutoplay, setShouldAutoplay] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [catalogUrl, setCatalogUrl] = useState("");
 
   const currentMedia = useMemo(
     () => library.find((item) => item.id === currentId) ?? null,
@@ -51,9 +56,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioStatus = useAudioPlayerStatus(audioPlayer);
 
   useEffect(() => {
-    void Promise.all([loadMediaLibrary(), AsyncStorage.getItem(QUEUE_KEY)])
-      .then(([items, savedQueue]) => {
+    void Promise.all([loadMediaLibrary(), AsyncStorage.getItem(QUEUE_KEY), AsyncStorage.getItem(CATALOG_URL_KEY)])
+      .then(([items, savedQueue, savedCatalogUrl]) => {
         setLibrary(items);
+        setCatalogUrl(savedCatalogUrl ?? "");
         if (savedQueue) {
           try {
             const parsed = JSON.parse(savedQueue) as string[];
@@ -178,9 +184,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const syncCatalog = useCallback(async (url: string) => {
+    const normalizedUrl = url.trim();
+    if (!normalizedUrl) throw new Error("Catalog URL is required");
+    const merged = await syncRemoteCatalog(library, normalizedUrl);
+    setLibrary(merged);
+    setCatalogUrl(normalizedUrl);
+    await AsyncStorage.setItem(CATALOG_URL_KEY, normalizedUrl);
+    return merged.length;
+  }, [library]);
+
   const value = useMemo<PlayerContextValue>(
     () => ({
       library,
+      catalogUrl,
       hydrated,
       currentMedia,
       queueIds,
@@ -194,9 +211,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       importMedia,
       deleteMedia,
       toggleFavorite,
+      syncCatalog,
     }),
     [
       audioStatus,
+      catalogUrl,
       currentMedia,
       deleteMedia,
       hydrated,
@@ -207,6 +226,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       playFromList,
       previous,
       queueIds,
+      syncCatalog,
       toggleCurrent,
       toggleFavorite,
     ],
