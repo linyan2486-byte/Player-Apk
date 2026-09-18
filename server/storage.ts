@@ -30,8 +30,9 @@ function appendHashSuffix(relKey: string): string {
 
 export async function storagePut(
   relKey: string,
-  data: Buffer | Uint8Array | string,
+  data: Buffer | Uint8Array | string | NodeJS.ReadableStream,
   contentType = "application/octet-stream",
+  contentLength?: number,
 ): Promise<{ key: string; url: string }> {
   const { forgeUrl, forgeKey } = getForgeConfig();
   const key = appendHashSuffix(normalizeKey(relKey));
@@ -53,15 +54,15 @@ export async function storagePut(
   if (!s3Url) throw new Error("Forge returned empty presign URL");
 
   // 2. PUT file directly to S3
-  const blob =
-    typeof data === "string"
-      ? new Blob([data], { type: contentType })
-      : new Blob([data as any], { type: contentType });
+  const body = typeof data === "string" || Buffer.isBuffer(data) || data instanceof Uint8Array
+    ? new Blob([data as any], { type: contentType })
+    : (data as any);
 
   const uploadResp = await fetch(s3Url, {
     method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob,
+    headers: { "Content-Type": contentType, ...(contentLength ? { "Content-Length": String(contentLength) } : {}) },
+    body: body as any,
+    ...(typeof (body as any)?.pipe === "function" ? { duplex: "half" as const } : {}),
   });
 
   if (!uploadResp.ok) {

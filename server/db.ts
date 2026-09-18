@@ -95,6 +95,12 @@ export async function listPublishedMedia() {
   return db.select().from(mediaCatalog).where(eq(mediaCatalog.published, 1)).orderBy(desc(mediaCatalog.sortOrder), desc(mediaCatalog.createdAt));
 }
 
+export async function listAllMedia() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(mediaCatalog).orderBy(desc(mediaCatalog.sortOrder), desc(mediaCatalog.createdAt));
+}
+
 export async function createMediaCatalogItem(item: InsertMediaCatalogItem) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

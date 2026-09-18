@@ -15,6 +15,13 @@
       "when": 1789744678123,
       "tag": "0001_clever_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1789768981479,
+      "tag": "0002_windy_deathbird",
+      "breakpoints": true
     }
   ]
 }
