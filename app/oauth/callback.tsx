@@ -201,6 +201,7 @@ export default function OAuthCallback() {
               name: result.user.name,
               email: result.user.email,
               loginMethod: result.user.loginMethod,
+              role: result.user.role,
               lastSignedIn: new Date(result.user.lastSignedIn || Date.now()),
             };
             await Auth.setUserInfo(userInfo);

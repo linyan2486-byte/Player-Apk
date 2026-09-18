@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { formatBytes, MediaItem } from "@/lib/media-library";
 
-export function MediaCard({ item, onPress, onFavorite }: { item: MediaItem; onPress: () => void; onFavorite: () => void }) {
+export function MediaCard({ item, onPress, onFavorite, onDownload }: { item: MediaItem; onPress: () => void; onFavorite: () => void; onDownload?: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -17,6 +17,7 @@ export function MediaCard({ item, onPress, onFavorite }: { item: MediaItem; onPr
           <Text className="text-base font-semibold text-foreground" numberOfLines={1}>{item.title}</Text>
           <Text className="mt-1 text-xs text-muted" numberOfLines={1}>{item.artist} · {formatBytes(item.size)}</Text>
         </View>
+        {item.remoteId && !item.offline && onDownload ? <Pressable onPress={onDownload} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}><MaterialIcons name="download" size={21} color="#69c7e8" /></Pressable> : null}
         <Pressable onPress={onFavorite} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
           <MaterialIcons name={item.favorite ? "favorite" : "favorite-border"} size={22} color={item.favorite ? "#ff7187" : "#7f8c9a"} />
         </Pressable>

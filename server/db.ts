@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertMediaCatalogItem, InsertUser, mediaCatalog, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,27 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function listPublishedMedia() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(mediaCatalog).where(eq(mediaCatalog.published, 1)).orderBy(desc(mediaCatalog.sortOrder), desc(mediaCatalog.createdAt));
+}
+
+export async function createMediaCatalogItem(item: InsertMediaCatalogItem) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(mediaCatalog).values(item);
+  return item.publicId;
+}
+
+export async function updateMediaCatalogItem(publicId: string, data: Partial<InsertMediaCatalogItem>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(mediaCatalog).set(data).where(eq(mediaCatalog.publicId, publicId));
+}
+
+export async function deleteMediaCatalogItem(publicId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(mediaCatalog).where(eq(mediaCatalog.publicId, publicId));
+}

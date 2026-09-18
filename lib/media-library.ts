@@ -10,6 +10,7 @@ export type MediaKind = "audio" | "video";
 export type MediaItem = {
   id: string;
   remoteId?: string;
+  offline?: boolean;
   title: string;
   artist: string;
   kind: MediaKind;

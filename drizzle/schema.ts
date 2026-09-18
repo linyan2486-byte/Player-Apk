@@ -25,4 +25,20 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const mediaCatalog = mysqlTable("media_catalog", {
+  id: int("id").autoincrement().primaryKey(),
+  publicId: varchar("publicId", { length: 80 }).notNull().unique(),
+  title: varchar("title", { length: 255 }).notNull(),
+  artist: varchar("artist", { length: 255 }).default("Mg Flâsh"),
+  kind: mysqlEnum("kind", ["audio", "video"]).notNull(),
+  storageKey: varchar("storageKey", { length: 512 }).notNull(),
+  mimeType: varchar("mimeType", { length: 160 }),
+  fileSize: int("fileSize"),
+  published: int("published").default(1).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MediaCatalogItem = typeof mediaCatalog.$inferSelect;
+export type InsertMediaCatalogItem = typeof mediaCatalog.$inferInsert;

@@ -10,7 +10,9 @@ import {
   removeLocalMedia,
   saveMediaLibrary,
 } from "@/lib/media-library";
-import { syncRemoteCatalog } from "@/lib/catalog-sync";
+import { downloadRemoteMedia, fetchPublicCatalog, syncRemoteCatalog } from "@/lib/catalog-sync";
+import { mergePublicCatalog } from "@/lib/catalog-utils";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 const QUEUE_KEY = "@player-apk/queue/v1";
 const CATALOG_URL_KEY = "@player-apk/catalog-url/v1";
@@ -32,6 +34,8 @@ type PlayerContextValue = {
   deleteMedia: (id: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   syncCatalog: (url: string) => Promise<number>;
+  refreshPublicCatalog: () => Promise<number>;
+  downloadMedia: (id: string) => Promise<void>;
 };
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -79,6 +83,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (hydrated) void AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queueIds));
   }, [hydrated, queueIds]);
+
+  const refreshPublicCatalog = useCallback(async () => {
+    const remoteItems = await fetchPublicCatalog(getApiBaseUrl());
+    setLibrary((previous) => mergePublicCatalog(previous, remoteItems));
+    return remoteItems.length;
+  }, []);
+
+  useEffect(() => {
+    if (hydrated) void refreshPublicCatalog().catch(() => undefined);
+  }, [hydrated, refreshPublicCatalog]);
 
   useEffect(() => {
     void setAudioModeAsync({
@@ -194,6 +208,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return merged.length;
   }, [library]);
 
+  const downloadMedia = useCallback(async (id: string) => {
+    const item = library.find((entry) => entry.id === id);
+    if (!item?.remoteId || item.offline) return;
+    const saved = await downloadRemoteMedia({ id: item.remoteId, title: item.title, artist: item.artist, kind: item.kind, url: item.localUri, mimeType: item.mimeType, size: item.size }, item);
+    setLibrary((items) => items.map((entry) => entry.id === id ? saved : entry));
+  }, [library]);
+
   const value = useMemo<PlayerContextValue>(
     () => ({
       library,
@@ -212,6 +233,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       deleteMedia,
       toggleFavorite,
       syncCatalog,
+      refreshPublicCatalog,
+      downloadMedia,
     }),
     [
       audioStatus,
@@ -229,6 +252,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       syncCatalog,
       toggleCurrent,
       toggleFavorite,
+      refreshPublicCatalog,
+      downloadMedia,
     ],
   );
 

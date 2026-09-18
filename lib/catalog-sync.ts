@@ -24,6 +24,56 @@ function extensionFor(item: RemoteCatalogItem) {
   return "mp3";
 }
 
+export async function fetchPublicCatalog(apiBaseUrl: string) {
+  const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/api/catalog`);
+  if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
+  const payload = (await response.json()) as RemoteCatalogItem[] | { items: RemoteCatalogItem[] };
+  const items = Array.isArray(payload) ? payload : payload.items;
+  if (!Array.isArray(items)) throw new Error("Catalog response is invalid");
+  return items.map((item) => ({ ...item, url: item.url.startsWith("http") ? item.url : `${apiBaseUrl.replace(/\/$/, "")}${item.url}` }));
+}
+
+export async function downloadRemoteMedia(item: RemoteCatalogItem, existing?: MediaItem) {
+  if (Platform.OS === "web") return { ...(existing ?? {}), id: existing?.id ?? `remote-${item.id}`, remoteId: item.id, title: item.title, artist: item.artist || "Mg Flâsh", kind: item.kind, localUri: item.url, mimeType: item.mimeType, size: item.size, createdAt: existing?.createdAt ?? Date.now(), favorite: existing?.favorite ?? false, offline: false } as MediaItem;
+
+  const mediaDirectory = new Directory(Paths.document, "player-media");
+  mediaDirectory.create({ intermediates: true, idempotent: true });
+  const localFile = new File(mediaDirectory, `remote-${safeName(item.id)}-${safeName(item.title)}.${extensionFor(item)}`);
+  const downloaded = await File.downloadFileAsync(item.url, localFile);
+  return {
+    id: existing?.id ?? `remote-${item.id}`,
+    remoteId: item.id,
+    title: item.title,
+    artist: item.artist || "Mg Flâsh",
+    kind: item.kind,
+    localUri: downloaded.uri,
+    mimeType: item.mimeType,
+    size: item.size,
+    createdAt: existing?.createdAt ?? Date.now(),
+    favorite: existing?.favorite ?? false,
+    offline: true,
+  } as MediaItem;
+}
+
+export function mergePublicCatalog(existing: MediaItem[], remoteItems: RemoteCatalogItem[]) {
+  const byRemoteId = new Map<string, MediaItem>();
+  existing.forEach((item) => { if (item.remoteId) byRemoteId.set(item.remoteId, item); });
+  const remote = remoteItems.map((item) => byRemoteId.get(item.id) ?? {
+    id: `remote-${item.id}`,
+    remoteId: item.id,
+    title: item.title,
+    artist: item.artist || "Mg Flâsh",
+    kind: item.kind,
+    localUri: item.url,
+    mimeType: item.mimeType,
+    size: item.size,
+    createdAt: Date.now(),
+    favorite: false,
+    offline: false,
+  });
+  return [...remote, ...existing.filter((item) => !item.remoteId)];
+}
+
 export async function syncRemoteCatalog(existing: MediaItem[], catalogUrl: string) {
   const response = await fetch(catalogUrl);
   if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
@@ -35,9 +85,6 @@ export async function syncRemoteCatalog(existing: MediaItem[], catalogUrl: strin
   existing.forEach((item) => {
     if (item.remoteId) localByRemoteId.set(item.remoteId, item);
   });
-  const mediaDirectory = new Directory(Paths.document, "player-media");
-  if (Platform.OS !== "web") mediaDirectory.create({ intermediates: true, idempotent: true });
-
   const downloaded: MediaItem[] = [];
   for (const item of remoteItems) {
     const old = localByRemoteId.get(item.id);
@@ -46,24 +93,8 @@ export async function syncRemoteCatalog(existing: MediaItem[], catalogUrl: strin
       downloaded.push(old);
       continue;
     }
-
-    const localUri = Platform.OS === "web"
-      ? item.url
-      : (await File.downloadFileAsync(item.url, new File(mediaDirectory, `remote-${safeName(item.id)}-${safeName(item.title)}.${extensionFor(item)}`))).uri;
-    downloaded.push({
-      id: `remote-${item.id}`,
-      remoteId: item.id,
-      title: item.title,
-      artist: item.artist || "Mg Flâsh catalog",
-      kind: item.kind,
-      localUri,
-      mimeType: item.mimeType,
-      size: item.size,
-      createdAt: Date.now(),
-      favorite,
-    });
+    downloaded.push({ id: `remote-${item.id}`, remoteId: item.id, title: item.title, artist: item.artist || "Mg Flâsh catalog", kind: item.kind, localUri: item.url, mimeType: item.mimeType, size: item.size, createdAt: Date.now(), favorite, offline: false });
   }
-
   const localOnly = existing.filter((item) => !item.remoteId);
   return [...downloaded, ...localOnly];
 }
