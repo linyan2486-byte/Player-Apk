@@ -10,25 +10,17 @@ import { fuzzyFilter } from "@/lib/search-utils";
 import { usePlayer } from "@/lib/player-context";
 
 export default function HomeScreen() {
-  const { library, hydrated, playFromList, importMedia, toggleFavorite, downloadMedia, refreshPublicCatalog } = usePlayer();
+  const { library, hydrated, playFromList, toggleFavorite, downloadMedia, refreshPublicCatalog } = usePlayer();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<"all" | "video" | "audio">("all");
-  const [importing, setImporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const filtered = useMemo(() => {
-    const inCategory = category === "all" ? library : library.filter((item) => item.kind === category);
-    return fuzzyFilter(inCategory, query);
-  }, [category, library, query]);
+  const catalog = useMemo(() => library.filter((item) => Boolean(item.remoteId)), [library]);
 
-  const handleImport = async () => {
-    setImporting(true);
-    try {
-      await importMedia();
-    } finally {
-      setImporting(false);
-    }
-  };
+  const filtered = useMemo(() => {
+    const inCategory = category === "all" ? catalog : catalog.filter((item) => item.kind === category);
+    return fuzzyFilter(inCategory, query);
+  }, [catalog, category, query]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -53,9 +45,9 @@ export default function HomeScreen() {
         ))}
       </View>
 
-      <View className="mt-6 flex-row items-center justify-between"><View><Text className="text-lg font-bold text-foreground">{category === "video" ? "Video" : category === "audio" ? "Music" : "Your library"}</Text><Text className="mt-1 text-sm text-muted">{filtered.length} {filtered.length === 1 ? "file" : "files"} · offline ready</Text></View><Pressable onPress={handleImport} disabled={importing} style={({ pressed }) => ({ opacity: pressed ? 0.68 : importing ? 0.55 : 1 })}><View className="flex-row items-center rounded-full bg-primary px-4 py-2.5">{importing ? <ActivityIndicator size="small" color="#07131a" /> : <MaterialIcons name="add" size={18} color="#07131a" />}<Text className="ml-1.5 font-bold text-[#07131a]">Import</Text></View></Pressable></View>
+      <View className="mt-6 flex-row items-center justify-between"><View><Text className="text-lg font-bold text-foreground">{category === "video" ? "Video" : category === "audio" ? "Music" : "Telegram catalog"}</Text><Text className="mt-1 text-sm text-muted">{filtered.length} {filtered.length === 1 ? "file" : "files"} · tap to play</Text></View><View className="flex-row items-center rounded-full border border-primary/40 px-3 py-2"><MaterialIcons name="telegram" size={16} color="#69c7e8" /><Text className="ml-1 text-xs font-semibold text-primary">Owner uploads</Text></View></View>
 
-      {!hydrated ? <View className="flex-1 items-center justify-center"><ActivityIndicator color="#69c7e8" /></View> : filtered.length ? <View className="mt-5 flex-1">{filtered.slice(0, 10).map((item) => <MediaCard key={item.id} item={item} onPress={() => playFromList(item.id, filtered.map((entry) => entry.id))} onFavorite={() => void toggleFavorite(item.id)} onDownload={() => void downloadMedia(item.id)} />)}{filtered.length > 10 ? <Text className="mt-2 text-center text-xs text-muted">Showing the top 10 closest matches</Text> : null}</View> : <View className="mt-10 items-center rounded-3xl border border-dashed border-border bg-surface/70 px-7 py-10"><View className="h-16 w-16 items-center justify-center rounded-2xl bg-primary/15"><MaterialIcons name={category === "video" ? "movie" : category === "audio" ? "music-note" : "library-music"} size={32} color="#69c7e8" /></View><Text className="mt-5 text-center text-xl font-bold text-foreground">{query ? "No close matches yet" : `Add your ${category === "video" ? "videos" : category === "audio" ? "music" : "media"}`}</Text><Text className="mt-2 text-center leading-6 text-muted">{query ? "Try fewer words or a different artist/title." : "Import files once and they stay offline, even after app updates."}</Text><Pressable onPress={handleImport} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}><View className="mt-6 rounded-full bg-primary px-5 py-3"><Text className="font-bold text-[#07131a]">Choose media</Text></View></Pressable></View>}
+      {!hydrated ? <View className="flex-1 items-center justify-center"><ActivityIndicator color="#69c7e8" /></View> : filtered.length ? <View className="mt-5 flex-1">{filtered.slice(0, 10).map((item) => <MediaCard key={item.id} item={item} onPress={() => { playFromList(item.id, filtered.map((entry) => entry.id)); router.push(`/player/${item.id}`); }} onFavorite={() => void toggleFavorite(item.id)} onDownload={() => void downloadMedia(item.id)} />)}{filtered.length > 10 ? <Text className="mt-2 text-center text-xs text-muted">Showing the top 10 closest matches</Text> : null}</View> : <View className="mt-10 items-center rounded-3xl border border-dashed border-border bg-surface/70 px-7 py-10"><View className="h-16 w-16 items-center justify-center rounded-2xl bg-primary/15"><MaterialIcons name={category === "video" ? "movie" : category === "audio" ? "music-note" : "telegram"} size={32} color="#69c7e8" /></View><Text className="mt-5 text-center text-xl font-bold text-foreground">{query ? "No close matches yet" : "No Telegram files yet"}</Text><Text className="mt-2 text-center leading-6 text-muted">{query ? "Try fewer words or a different artist/title." : "The owner must post Video/Music files to the Telegram channel. Pull down to refresh after posting."}</Text></View>}
       </ScrollView>
       <MiniPlayer />
     </ScreenContainer>
