@@ -7,7 +7,8 @@ import { usePlayer } from "@/lib/player-context";
 import { getApiBaseUrl } from "@/constants/oauth";
 
 export default function SettingsScreen() {
-  const { library, refreshPublicCatalog } = usePlayer();
+  const { library, importMedia, refreshPublicCatalog } = usePlayer();
+  const [importing, setImporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [lastResult, setLastResult] = useState<string>("");
 
@@ -24,6 +25,18 @@ export default function SettingsScreen() {
       Alert.alert("Catalog unavailable", `${message}\n\nPlease try again after Railway is redeployed.`);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+    try {
+      const count = await importMedia();
+      Alert.alert("Local media", count ? `${count} file${count === 1 ? "" : "s"} added. Open Home and tap the Video/Music card to play.` : "No file selected.");
+    } catch (error) {
+      Alert.alert("Import failed", error instanceof Error ? error.message : "Please select an audio or video file.");
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -65,6 +78,14 @@ export default function SettingsScreen() {
             </View>
           </Pressable>
         </View>
+
+        <Pressable onPress={() => void handleImport()} disabled={importing} style={({ pressed }) => ({ opacity: pressed ? 0.7 : importing ? 0.5 : 1 })}>
+          <View className="mt-5 flex-row items-center rounded-2xl border border-border bg-surface p-4">
+            <View className="h-10 w-10 items-center justify-center rounded-xl bg-primary/15">{importing ? <ActivityIndicator color="#69c7e8" /> : <MaterialIcons name="file-upload" size={22} color="#69c7e8" />}</View>
+            <View className="ml-3 flex-1"><Text className="font-semibold text-foreground">Add Local Video / Music</Text><Text className="mt-1 text-xs text-muted">Optional: select files from this phone</Text></View>
+            <MaterialIcons name="chevron-right" size={22} color="#7f8c9a" />
+          </View>
+        </Pressable>
 
         <View className="mt-6">
           <Text className="text-xs font-semibold uppercase tracking-[2px] text-muted">App information</Text>
