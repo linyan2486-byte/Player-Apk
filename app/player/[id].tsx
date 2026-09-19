@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
 
 import { ScreenContainer } from "@/components/screen-container";
+import { formatDuration } from "@/lib/media-utils";
 import { usePlayer } from "@/lib/player-context";
 
 function ControlButton({
@@ -130,6 +131,11 @@ export default function PlayerScreen() {
             style={{ width: "100%", aspectRatio: 16 / 9 }}
             contentFit="contain"
             allowsFullscreen
+            fullscreenOptions={{
+              enable: true,
+              orientation: "landscape",
+              autoExitOnRotate: true,
+            }}
             allowsPictureInPicture
           />
         </View>
@@ -161,10 +167,12 @@ export default function PlayerScreen() {
         </View>
         <View className="mt-2 flex-row justify-between">
           <Text className="text-xs text-muted">
-            {Math.floor(isVideo ? videoCurrentTime : audioStatus.currentTime)}s
+            {formatDuration(
+              isVideo ? videoCurrentTime : audioStatus.currentTime,
+            )}
           </Text>
           <Text className="text-xs text-muted">
-            {Math.floor(isVideo ? videoDuration : audioStatus.duration)}s
+            {formatDuration(isVideo ? videoDuration : audioStatus.duration)}
           </Text>
         </View>
       </View>

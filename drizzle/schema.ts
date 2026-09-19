@@ -1,4 +1,12 @@
-import { bigint, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import {
+  bigint,
+  int,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  varchar,
+} from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -30,9 +38,13 @@ export const mediaCatalog = mysqlTable("media_catalog", {
   publicId: varchar("publicId", { length: 80 }).notNull().unique(),
   title: varchar("title", { length: 255 }).notNull(),
   artist: varchar("artist", { length: 255 }).default("Mg Flâsh"),
+  seriesTitle: varchar("seriesTitle", { length: 255 }),
+  episodeNumber: int("episodeNumber"),
   kind: mysqlEnum("kind", ["audio", "video"]).notNull(),
   storageKey: varchar("storageKey", { length: 512 }).notNull(),
-  storageProvider: varchar("storageProvider", { length: 32 }).default("forge").notNull(),
+  storageProvider: varchar("storageProvider", { length: 32 })
+    .default("forge")
+    .notNull(),
   telegramFileId: varchar("telegramFileId", { length: 256 }),
   telegramMessageId: int("telegramMessageId"),
   thumbnailFileId: varchar("thumbnailFileId", { length: 256 }),

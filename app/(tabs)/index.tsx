@@ -32,6 +32,7 @@ export default function HomeScreen() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedSeries, setExpandedSeries] = useState<string | null>(null);
 
   const filtered = useMemo(() => fuzzyFilter(library, query), [library, query]);
   const videoItems = useMemo(
@@ -66,6 +67,104 @@ export default function HomeScreen() {
     router.push(`/player/${item.id}`);
   };
 
+  const renderMediaRows = (items: MediaItem[]) => {
+    const groups = new Map<string, MediaItem[]>();
+    items.forEach((item) => {
+      if (item.seriesTitle) {
+        groups.set(item.seriesTitle, [
+          ...(groups.get(item.seriesTitle) || []),
+          item,
+        ]);
+      }
+    });
+    const seriesNames = [...groups.keys()];
+    const standalone = items.filter((item) => !item.seriesTitle);
+    return [
+      ...seriesNames.map((seriesName) => {
+        const episodes = [...(groups.get(seriesName) || [])].sort(
+          (a, b) =>
+            (a.episodeNumber ?? Number.MAX_SAFE_INTEGER) -
+              (b.episodeNumber ?? Number.MAX_SAFE_INTEGER) ||
+            b.createdAt - a.createdAt,
+        );
+        const expanded = expandedSeries === seriesName;
+        return (
+          <View
+            key={`series-${seriesName}`}
+            className="mb-5 overflow-hidden rounded-2xl border border-primary/25 bg-surface"
+          >
+            <Pressable
+              onPress={() => setExpandedSeries(expanded ? null : seriesName)}
+              className="flex-row items-center px-4 py-4"
+            >
+              <View className="h-12 w-12 items-center justify-center rounded-xl bg-primary/15">
+                <MaterialIcons name="playlist-play" size={28} color="#69c7e8" />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text
+                  className="text-base font-bold text-foreground"
+                  numberOfLines={1}
+                >
+                  {seriesName}
+                </Text>
+                <Text className="mt-1 text-xs text-muted">
+                  {episodes.length} episodes · tap to open playlist
+                </Text>
+              </View>
+              <MaterialIcons
+                name={expanded ? "expand-less" : "expand-more"}
+                size={25}
+                color="#69c7e8"
+              />
+            </Pressable>
+            {expanded ? (
+              <View className="border-t border-border px-3 pt-3">
+                {episodes.map((episode, index) => (
+                  <Pressable
+                    key={episode.id}
+                    onPress={() => openItem(episode, episodes)}
+                    className="mb-3 flex-row items-center rounded-xl bg-[#10232d] px-3 py-3"
+                  >
+                    <Text className="w-10 text-center text-sm font-bold text-primary">
+                      {episode.episodeNumber ?? index + 1}
+                    </Text>
+                    <View className="ml-2 flex-1">
+                      <Text
+                        className="text-sm font-semibold text-foreground"
+                        numberOfLines={1}
+                      >
+                        {episode.title}
+                      </Text>
+                      <Text className="mt-1 text-xs text-muted">
+                        {episode.artist}
+                      </Text>
+                    </View>
+                    <MaterialIcons
+                      name="play-circle-outline"
+                      size={25}
+                      color="#69c7e8"
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        );
+      }),
+      ...standalone
+        .slice(0, 10)
+        .map((item) => (
+          <MediaCard
+            key={item.id}
+            item={item}
+            onPress={() => openItem(item, items)}
+            onFavorite={() => void toggleFavorite(item.id)}
+            onDownload={() => void downloadMedia(item.id)}
+          />
+        )),
+    ];
+  };
+
   const renderSection = (
     title: string,
     icon: "movie" | "music-note",
@@ -96,17 +195,21 @@ export default function HomeScreen() {
         ) : null}
       </View>
       {items.length ? (
-        items
-          .slice(0, 10)
-          .map((item) => (
-            <MediaCard
-              key={item.id}
-              item={item}
-              onPress={() => openItem(item, items)}
-              onFavorite={() => void toggleFavorite(item.id)}
-              onDownload={() => void downloadMedia(item.id)}
-            />
-          ))
+        title === "Video" ? (
+          renderMediaRows(items)
+        ) : (
+          items
+            .slice(0, 10)
+            .map((item) => (
+              <MediaCard
+                key={item.id}
+                item={item}
+                onPress={() => openItem(item, items)}
+                onFavorite={() => void toggleFavorite(item.id)}
+                onDownload={() => void downloadMedia(item.id)}
+              />
+            ))
+        )
       ) : (
         <View className="rounded-2xl border border-dashed border-border bg-surface/50 px-5 py-6">
           <Text className="text-center text-sm text-muted">{emptyText}</Text>

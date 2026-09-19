@@ -148,6 +148,8 @@ export async function ingestTelegramChannelPost(post: any) {
     await db.updateMediaCatalogItem(publicId, {
       title: metadata.title,
       artist: metadata.artist,
+      seriesTitle: metadata.seriesTitle ?? null,
+      episodeNumber: metadata.episodeNumber ?? null,
     });
     return true;
   }
@@ -156,6 +158,8 @@ export async function ingestTelegramChannelPost(post: any) {
     publicId,
     title: metadata.title,
     artist: metadata.artist,
+    seriesTitle: metadata.seriesTitle ?? null,
+    episodeNumber: metadata.episodeNumber ?? null,
     kind,
     storageKey: `telegram/${media.file_id}`,
     storageProvider: "telegram",

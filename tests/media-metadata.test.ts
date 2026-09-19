@@ -21,6 +21,21 @@ describe("Telegram media metadata", () => {
     ).toEqual({ title: "Summer Rain", artist: "Aye Chan" });
   });
 
+  it("parses series and episode labels for playlist grouping", () => {
+    expect(
+      parseMediaMetadata({
+        caption:
+          "Series: My Drama\nEpisode: 12\nName: The Final Door\nArtic: Main Cast",
+        fallbackTitle: "file-name",
+      }),
+    ).toEqual({
+      title: "The Final Door",
+      artist: "Main Cast",
+      seriesTitle: "My Drama",
+      episodeNumber: 12,
+    });
+  });
+
   it("falls back to Telegram audio metadata and a default artist", () => {
     expect(
       parseMediaMetadata({

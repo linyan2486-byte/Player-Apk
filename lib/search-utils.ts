@@ -1,4 +1,9 @@
-export type SearchableMedia = { title: string; artist: string };
+export type SearchableMedia = {
+  title: string;
+  artist: string;
+  seriesTitle?: string;
+  episodeNumber?: number;
+};
 
 function normalize(value: string) {
   return value
@@ -30,21 +35,31 @@ export function fuzzyScore(query: string, media: SearchableMedia) {
   if (!normalizedQuery) return 0;
   const title = normalize(media.title);
   const artist = normalize(media.artist);
-  if (title === normalizedQuery) return 1000;
-  if (title.startsWith(normalizedQuery))
-    return 900 - Math.max(0, title.length - normalizedQuery.length);
-  if (title.includes(normalizedQuery))
-    return 800 - Math.max(0, title.length - normalizedQuery.length);
+  const series = normalize(media.seriesTitle || "");
+  const episode = normalize(
+    media.episodeNumber ? `episode ${media.episodeNumber}` : "",
+  );
+  const exactTargets = [title, series, episode];
+  if (exactTargets.includes(normalizedQuery)) return 1000;
+  if (exactTargets.some((target) => target.startsWith(normalizedQuery)))
+    return 900;
+  if (exactTargets.some((target) => target.includes(normalizedQuery)))
+    return 800;
 
-  const titleScore = subsequenceScore(
-    normalizedQuery.replace(/ /g, ""),
-    title.replace(/ /g, ""),
+  const compactQuery = normalizedQuery.replace(/ /g, "");
+  const titleScore = subsequenceScore(compactQuery, title.replace(/ /g, ""));
+  const artistScore = subsequenceScore(compactQuery, artist.replace(/ /g, ""));
+  const seriesScore = subsequenceScore(compactQuery, series.replace(/ /g, ""));
+  const episodeScore = subsequenceScore(
+    compactQuery,
+    episode.replace(/ /g, ""),
   );
-  const artistScore = subsequenceScore(
-    normalizedQuery.replace(/ /g, ""),
-    artist.replace(/ /g, ""),
+  return Math.max(
+    titleScore,
+    artistScore - 20,
+    seriesScore - 5,
+    episodeScore - 10,
   );
-  return Math.max(titleScore, artistScore - 20);
 }
 
 export function fuzzyFilter<T extends SearchableMedia>(

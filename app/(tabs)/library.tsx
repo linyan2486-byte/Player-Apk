@@ -29,6 +29,8 @@ export default function LibraryScreen() {
     );
     return fuzzyFilter(byFilter, query);
   }, [downloaded, filter, query]);
+  const videoCount = downloaded.filter((item) => item.kind === "video").length;
+  const musicCount = downloaded.filter((item) => item.kind === "audio").length;
 
   const askDelete = (id: string, title: string) =>
     Alert.alert(
@@ -87,10 +89,12 @@ export default function LibraryScreen() {
                 className={`ml-1 text-xs font-semibold capitalize ${filter === option ? "text-[#07131a]" : "text-muted"}`}
               >
                 {option === "all"
-                  ? "All"
+                  ? `All (${downloaded.length})`
                   : option === "audio"
-                    ? "Music"
-                    : option}
+                    ? `Music (${musicCount})`
+                    : option === "video"
+                      ? `Video (${videoCount})`
+                      : "Favorites"}
               </Text>
             </View>
           </Pressable>

@@ -34,6 +34,8 @@ export async function ensureMediaCatalogSchema() {
           publicId varchar(80) NOT NULL,
           title varchar(255) NOT NULL,
           artist varchar(255) DEFAULT 'Mg Flâsh',
+          seriesTitle varchar(255) NULL,
+          episodeNumber int NULL,
           kind enum('audio','video') NOT NULL,
           storageKey varchar(512) NOT NULL,
           storageProvider varchar(32) NOT NULL DEFAULT 'forge',
@@ -60,12 +62,38 @@ export async function ensureMediaCatalogSchema() {
       ),
     );
     console.log("[Database] Added media_catalog.thumbnailFileId");
+    for (const statement of [
+      "ALTER TABLE media_catalog ADD COLUMN seriesTitle varchar(255) NULL",
+      "ALTER TABLE media_catalog ADD COLUMN episodeNumber int NULL",
+    ]) {
+      try {
+        await db.execute(sql.raw(statement));
+      } catch (error: any) {
+        if (error?.errno !== 1060 && error?.code !== "ER_DUP_FIELDNAME")
+          throw error;
+      }
+    }
   } catch (error: any) {
     if (error?.errno !== 1060 && error?.code !== "ER_DUP_FIELDNAME") {
       console.warn(
         "[Database] Thumbnail compatibility check:",
         error?.message || error,
       );
+    }
+  }
+  for (const statement of [
+    "ALTER TABLE media_catalog ADD COLUMN seriesTitle varchar(255) NULL",
+    "ALTER TABLE media_catalog ADD COLUMN episodeNumber int NULL",
+  ]) {
+    try {
+      await db.execute(sql.raw(statement));
+    } catch (error: any) {
+      if (error?.errno !== 1060 && error?.code !== "ER_DUP_FIELDNAME") {
+        console.warn(
+          "[Database] Series compatibility check:",
+          error?.message || error,
+        );
+      }
     }
   }
 }

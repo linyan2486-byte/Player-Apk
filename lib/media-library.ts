@@ -13,6 +13,8 @@ export type MediaItem = {
   offline?: boolean;
   title: string;
   artist: string;
+  seriesTitle?: string;
+  episodeNumber?: number;
   kind: MediaKind;
   localUri: string;
   mimeType?: string;
@@ -48,7 +50,9 @@ export async function loadMediaLibrary(): Promise<MediaItem[]> {
     const raw = await AsyncStorage.getItem(LIBRARY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as MediaItem[];
-    return Array.isArray(parsed) ? parsed.filter((item) => item?.id && item?.localUri) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((item) => item?.id && item?.localUri)
+      : [];
   } catch {
     return [];
   }
@@ -75,7 +79,10 @@ export async function importLocalMedia(): Promise<MediaItem[]> {
   const imported: MediaItem[] = [];
   for (const asset of result.assets) {
     const id = `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const destination = new File(mediaDirectory, `${id}-${safeName(asset.name)}`);
+    const destination = new File(
+      mediaDirectory,
+      `${id}-${safeName(asset.name)}`,
+    );
 
     if (Platform.OS === "web") {
       imported.push({

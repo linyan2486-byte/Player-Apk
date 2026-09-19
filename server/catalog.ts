@@ -86,6 +86,8 @@ export function registerCatalogRoutes(app: Express) {
           id: item.publicId,
           title: item.title,
           artist: item.artist ?? "Mg Flâsh",
+          seriesTitle: item.seriesTitle ?? undefined,
+          episodeNumber: item.episodeNumber ?? undefined,
           kind: item.kind,
           url: `/manus-storage/${item.storageKey}`,
           thumbnailUrl: item.thumbnailFileId
@@ -214,6 +216,10 @@ export function registerCatalogRoutes(app: Express) {
             publicId,
             title,
             artist,
+            seriesTitle: req.body.seriesTitle?.trim().slice(0, 255) || null,
+            episodeNumber: Number.isFinite(Number(req.body.episodeNumber))
+              ? Number(req.body.episodeNumber)
+              : null,
             kind,
             storageKey: uploaded.key,
             storageProvider: telegram ? "telegram" : "forge",
@@ -231,6 +237,11 @@ export function registerCatalogRoutes(app: Express) {
               id: publicId,
               title,
               artist,
+              seriesTitle:
+                req.body.seriesTitle?.trim().slice(0, 255) || undefined,
+              episodeNumber: Number.isFinite(Number(req.body.episodeNumber))
+                ? Number(req.body.episodeNumber)
+                : undefined,
               kind,
               url: uploaded.url,
               mimeType: req.file.mimetype,
