@@ -74,6 +74,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "./plugins/with-media-queue-actions",
     [
       "expo-audio",
       {

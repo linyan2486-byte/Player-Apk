@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, Platform, type AppStateStatus } from "react-native";
+import { AppState, Linking, Platform, type AppStateStatus } from "react-native";
 import {
   setIsAudioActiveAsync,
   setAudioModeAsync,
@@ -241,6 +241,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setShouldAutoplay(true);
     }
   }, [currentId, currentMedia, library, queueIds]);
+
+  useEffect(() => {
+    const handleControlUrl = ({ url }: { url: string }) => {
+      if (url.includes("/media-control/next")) next();
+      if (url.includes("/media-control/previous")) previous();
+    };
+    const subscription = Linking.addEventListener("url", handleControlUrl);
+    void Linking.getInitialURL().then((url) => {
+      if (url) handleControlUrl({ url });
+    });
+    return () => subscription.remove();
+  }, [next, previous]);
 
   const playFromList = useCallback(
     (id: string, ids?: string[]) => {
