@@ -45,6 +45,10 @@ export function getApiBaseUrl(): string {
     }
   }
 
+  if (ReactNative.Platform.OS !== "web") {
+    return "https://player-apk-production.up.railway.app";
+  }
+
   // Fallback to empty (will use relative URL)
   return "";
 }

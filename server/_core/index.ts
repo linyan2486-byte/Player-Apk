@@ -8,6 +8,8 @@ import { registerStorageProxy } from "./storageProxy";
 import { registerCatalogRoutes } from "../catalog";
 import { registerAdminWeb } from "../admin-web";
 import { registerStandaloneAuth } from "../standalone-auth";
+import { registerTelegramWebhook } from "../telegram-webhook";
+import { telegramSetWebhook } from "../telegram-storage";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 
@@ -62,6 +64,7 @@ async function startServer() {
   registerCatalogRoutes(app);
   registerAdminWeb(app);
   registerStandaloneAuth(app);
+  registerTelegramWebhook(app);
   registerOAuthRoutes(app);
 
   app.get("/", (_req, res) => {
@@ -89,6 +92,7 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`[api] server listening on port ${port}`);
+    void telegramSetWebhook().catch((error) => console.warn("[Telegram] webhook setup failed:", error));
   });
 }
 

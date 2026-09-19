@@ -35,6 +35,7 @@ export const mediaCatalog = mysqlTable("media_catalog", {
   storageProvider: varchar("storageProvider", { length: 32 }).default("forge").notNull(),
   telegramFileId: varchar("telegramFileId", { length: 256 }),
   telegramMessageId: int("telegramMessageId"),
+  thumbnailFileId: varchar("thumbnailFileId", { length: 256 }),
   mimeType: varchar("mimeType", { length: 160 }),
   fileSize: bigint("fileSize", { mode: "number" }),
   published: int("published").default(1).notNull(),

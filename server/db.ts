@@ -108,6 +108,13 @@ export async function createMediaCatalogItem(item: InsertMediaCatalogItem) {
   return item.publicId;
 }
 
+export async function getMediaByPublicId(publicId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(mediaCatalog).where(eq(mediaCatalog.publicId, publicId)).limit(1);
+  return result[0];
+}
+
 export async function updateMediaCatalogItem(publicId: string, data: Partial<InsertMediaCatalogItem>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

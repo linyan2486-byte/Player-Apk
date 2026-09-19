@@ -11,6 +11,8 @@ export type RemoteCatalogItem = {
   url: string;
   mimeType?: string;
   size?: number;
+  thumbnailUrl?: string;
+  publishedAt?: string | number | Date;
 };
 
 function safeName(value: string) {
@@ -30,11 +32,12 @@ export async function fetchPublicCatalog(apiBaseUrl: string) {
   const payload = (await response.json()) as RemoteCatalogItem[] | { items: RemoteCatalogItem[] };
   const items = Array.isArray(payload) ? payload : payload.items;
   if (!Array.isArray(items)) throw new Error("Catalog response is invalid");
-  return items.map((item) => ({ ...item, url: item.url.startsWith("http") ? item.url : `${apiBaseUrl.replace(/\/$/, "")}${item.url}` }));
+  const base = apiBaseUrl.replace(/\/$/, "");
+  return items.map((item) => ({ ...item, url: item.url.startsWith("http") ? item.url : `${base}${item.url}`, thumbnailUrl: item.thumbnailUrl && !item.thumbnailUrl.startsWith("http") ? `${base}${item.thumbnailUrl}` : item.thumbnailUrl }));
 }
 
 export async function downloadRemoteMedia(item: RemoteCatalogItem, existing?: MediaItem) {
-  if (Platform.OS === "web") return { ...(existing ?? {}), id: existing?.id ?? `remote-${item.id}`, remoteId: item.id, title: item.title, artist: item.artist || "Mg Flâsh", kind: item.kind, localUri: item.url, mimeType: item.mimeType, size: item.size, createdAt: existing?.createdAt ?? Date.now(), favorite: existing?.favorite ?? false, offline: false } as MediaItem;
+  if (Platform.OS === "web") return { ...(existing ?? {}), id: existing?.id ?? `remote-${item.id}`, remoteId: item.id, title: item.title, artist: item.artist || "Mg Flâsh", kind: item.kind, localUri: item.url, mimeType: item.mimeType, thumbnailUrl: item.thumbnailUrl, size: item.size, createdAt: existing?.createdAt ?? Date.now(), favorite: existing?.favorite ?? false, offline: false } as MediaItem;
 
   const mediaDirectory = new Directory(Paths.document, "player-media");
   mediaDirectory.create({ intermediates: true, idempotent: true });
@@ -48,6 +51,7 @@ export async function downloadRemoteMedia(item: RemoteCatalogItem, existing?: Me
     kind: item.kind,
     localUri: downloaded.uri,
     mimeType: item.mimeType,
+    thumbnailUrl: item.thumbnailUrl,
     size: item.size,
     createdAt: existing?.createdAt ?? Date.now(),
     favorite: existing?.favorite ?? false,

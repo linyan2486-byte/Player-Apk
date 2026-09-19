@@ -16,6 +16,7 @@ export type MediaItem = {
   kind: MediaKind;
   localUri: string;
   mimeType?: string;
+  thumbnailUrl?: string;
   size?: number;
   createdAt: number;
   favorite: boolean;

@@ -1,0 +1,1 @@
+ALTER TABLE `media_catalog` ADD `thumbnailFileId` varchar(256);

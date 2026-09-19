@@ -53,7 +53,7 @@ export function registerCatalogRoutes(app: Express) {
   app.get("/api/catalog", async (_req: Request, res: Response) => {
     try {
       const items = await db.listPublishedMedia();
-      res.json(items.map((item) => ({ id: item.publicId, title: item.title, artist: item.artist ?? "Mg Flâsh", kind: item.kind, url: `/manus-storage/${item.storageKey}`, mimeType: item.mimeType, size: item.fileSize })));
+      res.json(items.map((item) => ({ id: item.publicId, title: item.title, artist: item.artist ?? "Mg Flâsh", kind: item.kind, url: `/manus-storage/${item.storageKey}`, thumbnailUrl: item.thumbnailFileId ? `/manus-storage/telegram/${item.thumbnailFileId}` : undefined, mimeType: item.mimeType, size: item.fileSize, publishedAt: item.createdAt })));
     } catch (error) {
       console.error("[Catalog] list failed:", error);
       res.status(500).json({ error: "Catalog unavailable" });
