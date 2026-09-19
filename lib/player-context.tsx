@@ -116,8 +116,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, library]);
 
   useEffect(() => {
-    if (!currentMedia) {
+    if (!currentMedia || currentMedia.kind !== "audio") {
       audioPlayer.pause();
+      try {
+        audioPlayer.setActiveForLockScreen(false);
+      } catch {
+        // The native player may already be released during a media switch.
+      }
       return;
     }
     try {
@@ -126,7 +131,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Native source replacement can race an Android activity transition.
     }
-  }, [audioPlayer, currentMedia?.id, currentMedia?.localUri]);
+  }, [
+    audioPlayer,
+    currentMedia?.id,
+    currentMedia?.kind,
+    currentMedia?.localUri,
+  ]);
 
   useEffect(() => {
     if (hydrated)
@@ -257,10 +267,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const playFromList = useCallback(
     (id: string, ids?: string[]) => {
       const nextQueue = ids?.length ? ids : library.map((item) => item.id);
+      const selected = library.find((item) => item.id === id);
+      if (!selected) return;
       if (id === currentId && currentMedia?.kind === "audio") {
-        activateAudioControls(currentMedia);
-        if (audioStatus.playing) audioPlayer.pause();
-        else audioPlayer.play();
+        if (audioStatus.playing) {
+          audioPlayer.pause();
+        } else if (audioStatus.isLoaded) {
+          activateAudioControls(currentMedia);
+          audioPlayer.play();
+        }
         return;
       }
       setQueueIds(nextQueue);
@@ -270,6 +285,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [
       activateAudioControls,
       audioPlayer,
+      audioStatus.isLoaded,
       audioStatus.playing,
       currentId,
       currentMedia,
@@ -279,10 +295,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const toggleCurrent = useCallback(() => {
     if (!currentMedia || currentMedia.kind !== "audio") return;
-    activateAudioControls(currentMedia);
-    if (audioStatus.playing) audioPlayer.pause();
-    else audioPlayer.play();
-  }, [activateAudioControls, audioPlayer, audioStatus.playing, currentMedia]);
+    if (audioStatus.playing) {
+      audioPlayer.pause();
+    } else if (audioStatus.isLoaded) {
+      activateAudioControls(currentMedia);
+      audioPlayer.play();
+    }
+  }, [
+    activateAudioControls,
+    audioPlayer,
+    audioStatus.isLoaded,
+    audioStatus.playing,
+    currentMedia,
+  ]);
 
   const seekCurrent = useCallback(
     (seconds: number) => audioPlayer.seekTo(Math.max(0, seconds)),
@@ -304,12 +329,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!currentMedia || !shouldAutoplay) return;
     if (currentMedia.kind === "video" && appState === "active") return;
+    if (!audioStatus.isLoaded) return;
     activateAudioControls(currentMedia);
     audioPlayer.play();
   }, [
     activateAudioControls,
     appState,
     audioPlayer,
+    audioStatus.isLoaded,
     currentMedia,
     shouldAutoplay,
   ]);

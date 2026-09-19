@@ -115,6 +115,7 @@ export function mergePublicCatalog(
     if (old) {
       return {
         ...old,
+        localUri: old.offline ? old.localUri : item.url,
         title: item.title,
         artist: item.artist || old.artist,
         contentType: item.contentType,
@@ -172,6 +173,7 @@ export async function syncRemoteCatalog(
     if (old) {
       downloaded.push({
         ...old,
+        localUri: old.offline ? old.localUri : item.url,
         title: item.title,
         artist: item.artist || old.artist,
         contentType: item.contentType,
