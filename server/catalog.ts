@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import * as db from "./db";
-import { sdk } from "./_core/sdk";
+import { isStandaloneAdmin } from "./standalone-auth";
 import { storagePut } from "./storage";
 import { telegramConfigured, telegramPut } from "./telegram-storage";
 
@@ -46,17 +46,8 @@ function getTitle(originalName: string, supplied?: string) {
 
 export function registerCatalogRoutes(app: Express) {
   async function requireAdmin(req: Request, res: Response) {
-    try {
-      const user = await sdk.authenticateRequest(req);
-      if (user.role !== "admin") {
-        res.status(403).json({ error: "Owner access required" });
-        return null;
-      }
-      return user;
-    } catch {
-      res.status(401).json({ error: "Owner sign-in required" });
-      return null;
-    }
+    if (!isStandaloneAdmin(req)) { res.status(401).json({ error: "Admin sign-in required" }); return null; }
+    return true;
   }
 
   app.get("/api/catalog", async (_req: Request, res: Response) => {
@@ -111,17 +102,7 @@ export function registerCatalogRoutes(app: Express) {
 
   app.post("/api/catalog/upload", uploadMedia, async (req: Request, res: Response) => {
     try {
-      let user;
-      try {
-        user = await sdk.authenticateRequest(req);
-      } catch {
-        res.status(401).json({ error: "Owner sign-in required" });
-        return;
-      }
-      if (user.role !== "admin") {
-        res.status(403).json({ error: "Owner access required" });
-        return;
-      }
+      if (!isStandaloneAdmin(req)) { res.status(401).json({ error: "Admin sign-in required" }); return; }
 
       if (!req.file) {
         res.status(400).json({ error: "A media file is required" });

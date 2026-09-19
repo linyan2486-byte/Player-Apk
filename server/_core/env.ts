@@ -18,4 +18,7 @@ export const ENV = {
   adminWebUrl: process.env.ADMIN_WEB_URL ?? "",
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
   telegramStorageChatId: process.env.TELEGRAM_STORAGE_CHAT_ID ?? "",
+  adminUsername: process.env.ADMIN_USERNAME ?? "admin",
+  adminPassword: process.env.ADMIN_PASSWORD ?? "",
+  jwtSecret: process.env.JWT_SECRET ?? "",
 };

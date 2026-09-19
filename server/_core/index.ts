@@ -7,6 +7,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { registerCatalogRoutes } from "../catalog";
 import { registerAdminWeb } from "../admin-web";
+import { registerStandaloneAuth } from "../standalone-auth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 
@@ -60,6 +61,7 @@ async function startServer() {
   registerStorageProxy(app);
   registerCatalogRoutes(app);
   registerAdminWeb(app);
+  registerStandaloneAuth(app);
   registerOAuthRoutes(app);
 
   app.get("/", (_req, res) => {
