@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useState } from "react";
 import { router } from "expo-router";
-import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
@@ -58,6 +58,7 @@ export default function SettingsScreen() {
 
   return (
     <ScreenContainer className="px-5 pt-3" edges={["top", "left", "right"]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
       <Text className="text-3xl font-bold text-foreground">Settings</Text>
       <Text className="mt-1 text-sm text-muted">Keep your listening experience under your control.</Text>
 
@@ -70,6 +71,7 @@ export default function SettingsScreen() {
       <View className="mt-5 rounded-2xl border border-primary/30 bg-[#152633] p-4"><View className="flex-row items-center"><MaterialIcons name="publish" size={21} color="#69c7e8" /><Text className="ml-2 font-semibold text-white">Public catalog owner</Text></View>{user?.role === "admin" ? <><Text className="mt-2 text-xs leading-5 text-[#c4d3db]">Signed in as {user.name || user.email || "owner"}. Uploads are published for every user to search, stream, and download offline.</Text><Pressable onPress={handleUpload} disabled={uploading} style={({ pressed }) => ({ opacity: pressed ? 0.7 : uploading ? 0.5 : 1 })}><View className="mt-3 flex-row items-center justify-center rounded-xl bg-primary py-3">{uploading ? <ActivityIndicator color="#07131a" /> : <MaterialIcons name="cloud-upload" size={18} color="#07131a" />}<Text className="ml-2 font-bold text-[#07131a]">{uploading ? "Uploading…" : "Upload Video / Music"}</Text></View></Pressable><Pressable onPress={() => router.push("/admin")} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}><View className="mt-3 flex-row items-center justify-center rounded-xl border border-primary py-3"><MaterialIcons name="admin-panel-settings" size={18} color="#69c7e8" /><Text className="ml-2 font-bold text-primary">Open Admin panel</Text></View></Pressable></> : <><Text className="mt-2 text-xs leading-5 text-[#c4d3db]">Owner sign-in is required to publish files to the public catalog. Other users can browse and download published media without signing in.</Text><Pressable onPress={handleLogin} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}><View className="mt-3 flex-row items-center justify-center rounded-xl border border-primary py-3"><MaterialIcons name="login" size={18} color="#69c7e8" /><Text className="ml-2 font-bold text-primary">Owner sign in</Text></View></Pressable></>}</View>
 
       <View className="mt-6"><Text className="text-xs font-semibold uppercase tracking-[2px] text-muted">App information</Text><View className="mt-3 rounded-2xl border border-border bg-surface p-4"><Text className="font-bold text-foreground">Mg Flâsh</Text><Text className="mt-1 text-sm text-muted">Developer – Wai Lin Yan</Text><Text className="mt-1 text-sm text-primary">Telegram – t.me/Cyberking24</Text><Text className="mt-3 text-xs text-muted">Local catalog v1 · Update-safe storage enabled</Text></View></View>
+      </ScrollView>
     </ScreenContainer>
   );
 }
