@@ -85,6 +85,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const finishHandledForIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    finishHandledForIdRef.current = null;
+  }, [currentMedia?.id]);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener("change", setAppState);
     return () => subscription.remove();
   }, []);
@@ -311,13 +315,17 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   useEffect(() => {
-    if (!audioStatus.didJustFinish || !currentMedia) return;
+    if (!currentMedia || currentMedia.kind !== "audio") return;
+    const reachedEnd =
+      audioStatus.isLoaded &&
+      audioStatus.duration > 0 &&
+      audioStatus.currentTime >= Math.max(0, audioStatus.duration - 0.35) &&
+      !audioStatus.playing;
+    if (!audioStatus.didJustFinish && !reachedEnd) return;
     if (finishHandledForIdRef.current === currentMedia.id) return;
-    if (currentMedia.kind === "audio") {
-      finishHandledForIdRef.current = currentMedia.id;
-      next();
-    }
-  }, [audioStatus.didJustFinish, currentMedia, next]);
+    finishHandledForIdRef.current = currentMedia.id;
+    next();
+  }, [audioStatus, currentMedia, next]);
 
   const importMedia = useCallback(async () => {
     const imported = await importLocalMedia();
