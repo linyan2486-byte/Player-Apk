@@ -79,6 +79,10 @@ export default function PlayerScreen() {
   });
   const videoTime = useEvent(videoPlayer, "timeUpdate");
   const videoLoaded = useEvent(videoPlayer, "sourceLoad");
+  const lastVideoTapRef = useRef<{
+    side: "left" | "right";
+    at: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!currentMedia && routeItem)
@@ -147,6 +151,16 @@ export default function PlayerScreen() {
     .filter((entry): entry is MediaItem => Boolean(entry))
     .slice(0, 8);
   const seekVideo = (seconds: number) => videoPlayer.seekBy(seconds);
+  const handleVideoTap = (side: "left" | "right") => {
+    const now = Date.now();
+    const previousTap = lastVideoTapRef.current;
+    if (previousTap && previousTap.side === side && now - previousTap.at <= 320) {
+      lastVideoTapRef.current = null;
+      seekVideo(side === "left" ? -10 : 10);
+      return;
+    }
+    lastVideoTapRef.current = { side, at: now };
+  };
   const toggleVideo = () => {
     if (videoPlaying) videoPlayer.pause();
     else videoPlayer.play();
@@ -195,6 +209,21 @@ export default function PlayerScreen() {
               }}
               allowsPictureInPicture
             />
+            <View
+              pointerEvents="box-none"
+              className="absolute inset-0 flex-row"
+            >
+              <Pressable
+                accessibilityLabel="Double tap to rewind 10 seconds"
+                onPress={() => handleVideoTap("left")}
+                className="h-full flex-1"
+              />
+              <Pressable
+                accessibilityLabel="Double tap to fast forward 10 seconds"
+                onPress={() => handleVideoTap("right")}
+                className="h-full flex-1"
+              />
+            </View>
           </View>
         ) : (
           <View className="mt-12 items-center rounded-3xl border border-primary/30 bg-[#152633] px-8 py-14">

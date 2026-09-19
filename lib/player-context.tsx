@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
@@ -73,12 +74,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     () => library.find((item) => item.id === currentId) ?? null,
     [currentId, library],
   );
-  const audioSource = currentMedia ? { uri: currentMedia.localUri } : null;
-  const audioPlayer = useAudioPlayer(audioSource, {
+  // Keep one native player instance for the provider lifetime. Recreating it
+  // per track can leave Android's notification bound to a released player.
+  const audioPlayer = useAudioPlayer(null, {
     updateInterval: 500,
     keepAudioSessionActive: true,
   });
   const audioStatus = useAudioPlayerStatus(audioPlayer);
+  const finishHandledForIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", setAppState);
@@ -111,6 +114,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (hydrated) void saveMediaLibrary(library);
   }, [hydrated, library]);
+
+  useEffect(() => {
+    if (!currentMedia) {
+      audioPlayer.pause();
+      return;
+    }
+    try {
+      audioPlayer.replace({ uri: currentMedia.localUri });
+      finishHandledForIdRef.current = null;
+    } catch {
+      // Native source replacement can race an Android activity transition.
+    }
+  }, [audioPlayer, currentMedia?.id, currentMedia?.localUri]);
 
   useEffect(() => {
     if (hydrated)
@@ -152,16 +168,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS === "android")
         void requestPlaybackNotificationPermission();
       void setIsAudioActiveAsync(true).catch(() => undefined);
-      audioPlayer.setActiveForLockScreen(
-        true,
-        {
-          title: item.title,
-          artist: item.artist,
-          albumTitle: "Mg Flâsh",
-          ...(item.thumbnailUrl ? { artworkUrl: item.thumbnailUrl } : {}),
-        },
-        { showSeekForward: true, showSeekBackward: true },
-      );
+      try {
+        audioPlayer.setActiveForLockScreen(
+          true,
+          {
+            title: item.title,
+            artist: item.artist,
+            albumTitle: "Mg Flâsh",
+            ...(item.thumbnailUrl ? { artworkUrl: item.thumbnailUrl } : {}),
+          },
+          {
+            showSeekForward: true,
+            showSeekBackward: true,
+          },
+        );
+      } catch {
+        // A native media session can disappear during an Android activity transition.
+      }
     },
     [audioPlayer],
   );
@@ -170,23 +193,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!currentMedia || currentMedia.kind !== "video") return;
     if (appState === "active") {
       audioPlayer.pause();
-      audioPlayer.setActiveForLockScreen(false);
-    } else if (shouldAutoplay) {
-      activateAudioControls(currentMedia);
-      audioPlayer.play();
+      try {
+        audioPlayer.setActiveForLockScreen(false);
+      } catch {
+        // The native player may already be released during navigation.
+      }
     }
   }, [
-    activateAudioControls,
     appState,
     audioPlayer,
     currentMedia,
-    shouldAutoplay,
   ]);
 
   const next = useCallback(() => {
     if (!currentId) return;
     const currentIndex = queueIds.indexOf(currentId);
-    const nextId = currentIndex >= 0 ? queueIds[currentIndex + 1] : undefined;
+    const currentGroup = currentMedia
+      ? `${currentMedia.kind}:${currentMedia.contentType ?? (currentMedia.kind === "audio" ? "music" : "video")}`
+      : null;
+    const nextId =
+      currentIndex >= 0
+        ? queueIds.slice(currentIndex + 1).find((id) => {
+            const item = library.find((entry) => entry.id === id);
+            return (
+              item &&
+              `${item.kind}:${item.contentType ?? (item.kind === "audio" ? "music" : "video")}` ===
+                currentGroup
+            );
+          })
+        : undefined;
     if (nextId) {
       setCurrentId(nextId);
       setShouldAutoplay(true);
@@ -194,18 +229,30 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setShouldAutoplay(false);
       if (currentMedia?.kind === "audio") audioPlayer.pause();
     }
-  }, [audioPlayer, currentId, currentMedia?.kind, queueIds]);
+  }, [audioPlayer, currentId, currentMedia, library, queueIds]);
 
   const previous = useCallback(() => {
     if (!currentId) return;
     const currentIndex = queueIds.indexOf(currentId);
+    const currentGroup = currentMedia
+      ? `${currentMedia.kind}:${currentMedia.contentType ?? (currentMedia.kind === "audio" ? "music" : "video")}`
+      : null;
     const previousId =
-      currentIndex > 0 ? queueIds[currentIndex - 1] : undefined;
+      currentIndex > 0
+        ? [...queueIds.slice(0, currentIndex)].reverse().find((id) => {
+            const item = library.find((entry) => entry.id === id);
+            return (
+              item &&
+              `${item.kind}:${item.contentType ?? (item.kind === "audio" ? "music" : "video")}` ===
+                currentGroup
+            );
+          })
+        : undefined;
     if (previousId) {
       setCurrentId(previousId);
       setShouldAutoplay(true);
     }
-  }, [currentId, queueIds]);
+  }, [currentId, currentMedia, library, queueIds]);
 
   const playFromList = useCallback(
     (id: string, ids?: string[]) => {
@@ -245,7 +292,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const pause = useCallback(() => {
     if (currentMedia?.kind === "audio") {
       audioPlayer.pause();
-      audioPlayer.setActiveForLockScreen(false);
+      try {
+        audioPlayer.setActiveForLockScreen(false);
+      } catch {
+        // The native player may already be released during navigation.
+      }
     }
     setShouldAutoplay(false);
   }, [audioPlayer, currentMedia?.kind]);
@@ -255,9 +306,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (currentMedia.kind === "video" && appState === "active") return;
     activateAudioControls(currentMedia);
     audioPlayer.play();
-    return () => {
-      if (Platform.OS !== "web") audioPlayer.setActiveForLockScreen(false);
-    };
   }, [
     activateAudioControls,
     appState,
@@ -267,8 +315,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   useEffect(() => {
-    if (audioStatus.didJustFinish) next();
-  }, [audioStatus.didJustFinish, next]);
+    if (!audioStatus.didJustFinish || !currentMedia) return;
+    if (finishHandledForIdRef.current === currentMedia.id) return;
+    // Foreground video is driven by expo-video. The audio handoff is only
+    // allowed to advance a video queue while the app is backgrounded.
+    if (currentMedia.kind === "audio" || appState !== "active") {
+      finishHandledForIdRef.current = currentMedia.id;
+      next();
+    }
+  }, [appState, audioStatus.didJustFinish, currentMedia, next]);
 
   const importMedia = useCallback(async () => {
     const imported = await importLocalMedia();
@@ -286,7 +341,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setQueueIds((ids) => ids.filter((entry) => entry !== id));
       if (currentId === id) {
         audioPlayer.pause();
-        audioPlayer.setActiveForLockScreen(false);
+        try {
+          audioPlayer.setActiveForLockScreen(false);
+        } catch {
+          // The native player may already be released during deletion.
+        }
         setCurrentId(null);
         setShouldAutoplay(false);
       }

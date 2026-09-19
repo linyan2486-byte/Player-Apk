@@ -107,9 +107,18 @@ export default function LibraryScreen() {
               <MediaCard
                 item={item}
                 onPress={() => {
+                  const contentType =
+                    item.contentType ?? (item.kind === "audio" ? "music" : "video");
+                  const matchingQueue = filtered.filter(
+                    (entry) =>
+                      entry.kind === item.kind &&
+                      (entry.contentType ??
+                        (entry.kind === "audio" ? "music" : "video")) ===
+                        contentType,
+                  );
                   playFromList(
                     item.id,
-                    filtered.map((entry) => entry.id),
+                    matchingQueue.map((entry) => entry.id),
                   );
                   router.push(`/player/${item.id}`);
                 }}
