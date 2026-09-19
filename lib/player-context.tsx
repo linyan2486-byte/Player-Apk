@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import {
   setIsAudioActiveAsync,
   setAudioModeAsync,
@@ -30,6 +30,7 @@ import {
 } from "@/lib/catalog-sync";
 import { mergePublicCatalog } from "@/lib/catalog-utils";
 import { getApiBaseUrl } from "@/constants/oauth";
+import { requestPlaybackNotificationPermission } from "@/lib/playback-notifications";
 
 const QUEUE_KEY = "@player-apk/queue/v1";
 const CATALOG_URL_KEY = "@player-apk/catalog-url/v1";
@@ -122,7 +123,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const refreshPublicCatalog = useCallback(async () => {
     const remoteItems = await fetchPublicCatalog(getApiBaseUrl());
-    setLibrary((previous) => mergePublicCatalog(previous, remoteItems));
+    setLibrary((previous) => {
+      const remoteIds = new Set(remoteItems.map((item) => item.id));
+      for (const item of previous) {
+        if (item.remoteId && !remoteIds.has(item.remoteId)) {
+          void removeLocalMedia(item);
+        }
+      }
+      return mergePublicCatalog(previous, remoteItems);
+    });
     return remoteItems.length;
   }, []);
 
@@ -151,10 +160,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const activateAudioControls = useCallback(
-    (_item: MediaItem) => {
+    (item: MediaItem) => {
+      if (Platform.OS === "android")
+        void requestPlaybackNotificationPermission();
       void setIsAudioActiveAsync(true).catch(() => undefined);
+      try {
+        audioPlayer.setActiveForLockScreen(
+          true,
+          {
+            title: item.title,
+            artist: item.artist,
+            albumTitle: "Mg Flâsh",
+            ...(item.thumbnailUrl ? { artworkUrl: item.thumbnailUrl } : {}),
+          },
+          { showSeekForward: true, showSeekBackward: true },
+        );
+      } catch {
+        // Media notification activation must never terminate playback.
+      }
     },
-    [],
+    [audioPlayer],
   );
 
   useEffect(() => {
@@ -272,13 +297,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!currentMedia || !shouldAutoplay) return;
-    if (currentMedia.kind === "video" && appState === "active") return;
+    // Only MP3/audio is allowed to use the background audio player.
+    if (currentMedia.kind !== "audio") return;
     if (!audioStatus.isLoaded) return;
     activateAudioControls(currentMedia);
     audioPlayer.play();
   }, [
     activateAudioControls,
-    appState,
     audioPlayer,
     audioStatus.isLoaded,
     currentMedia,
@@ -288,13 +313,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!audioStatus.didJustFinish || !currentMedia) return;
     if (finishHandledForIdRef.current === currentMedia.id) return;
-    // Foreground video is driven by expo-video. The audio handoff is only
-    // allowed to advance a video queue while the app is backgrounded.
-    if (currentMedia.kind === "audio" || appState !== "active") {
+    if (currentMedia.kind === "audio") {
       finishHandledForIdRef.current = currentMedia.id;
       next();
     }
-  }, [appState, audioStatus.didJustFinish, currentMedia, next]);
+  }, [audioStatus.didJustFinish, currentMedia, next]);
 
   const importMedia = useCallback(async () => {
     const imported = await importLocalMedia();
