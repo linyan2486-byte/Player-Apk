@@ -1,9 +1,10 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useEvent } from "expo";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Pressable,
   ScrollView,
   Text,
@@ -58,16 +59,19 @@ export default function PlayerScreen() {
     next,
     previous,
     playFromList,
+    seekCurrent,
     audioStatus,
     queueIds,
   } = usePlayer();
+  const audioPositionRef = useRef(0);
+  audioPositionRef.current = audioStatus.currentTime;
   const routeItem = library.find((entry) => entry.id === id);
   const item = currentMedia ?? routeItem;
+  const [progressWidth, setProgressWidth] = useState(0);
   const videoPlayer = useVideoPlayer(
     item?.kind === "video" ? item.localUri : null,
     (player) => {
       player.timeUpdateEventInterval = 0.5;
-      player.staysActiveInBackground = true;
     },
   );
   const { isPlaying: videoPlaying } = useEvent(videoPlayer, "playingChange", {
@@ -93,6 +97,20 @@ export default function PlayerScreen() {
     if (item?.kind === "video" && currentMedia?.id === item.id)
       videoPlayer.play();
   }, [currentMedia?.id, item?.id, item?.kind, videoPlayer]);
+
+  useEffect(() => {
+    if (item?.kind !== "video") return;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        if (audioPositionRef.current > 0)
+          videoPlayer.currentTime = audioPositionRef.current;
+        videoPlayer.play();
+      } else {
+        videoPlayer.pause();
+      }
+    });
+    return () => subscription.remove();
+  }, [item?.kind, videoPlayer]);
 
   if (!item) {
     return (
@@ -132,6 +150,17 @@ export default function PlayerScreen() {
   const toggleVideo = () => {
     if (videoPlaying) videoPlayer.pause();
     else videoPlayer.play();
+  };
+  const seekToProgress = (locationX: number) => {
+    if (!progressWidth) return;
+    const duration = isVideo ? videoDuration : audioStatus.duration;
+    if (!duration) return;
+    const nextTime = Math.max(
+      0,
+      Math.min(duration, (locationX / progressWidth) * duration),
+    );
+    if (isVideo) videoPlayer.currentTime = nextTime;
+    else void seekCurrent(nextTime);
   };
 
   return (
@@ -187,14 +216,24 @@ export default function PlayerScreen() {
         <Text className="mt-2 text-base text-muted">{item.artist}</Text>
 
         <View className="mt-8">
-          <View className="h-1.5 overflow-hidden rounded-full bg-border">
-            <View
-              className="h-full rounded-full bg-primary"
-              style={{
-                width: `${Math.min(100, Math.max(0, progress * 100))}%`,
-              }}
-            />
-          </View>
+          <Pressable
+            onLayout={(event) =>
+              setProgressWidth(event.nativeEvent.layout.width)
+            }
+            onPress={(event) => seekToProgress(event.nativeEvent.locationX)}
+            hitSlop={8}
+            className="h-5 justify-center"
+            accessibilityLabel="Seek playback"
+          >
+            <View className="h-1.5 overflow-hidden rounded-full bg-border">
+              <View
+                className="h-full rounded-full bg-primary"
+                style={{
+                  width: `${Math.min(100, Math.max(0, progress * 100))}%`,
+                }}
+              />
+            </View>
+          </Pressable>
           <View className="mt-2 flex-row justify-between">
             <Text className="text-xs text-muted">
               {formatDuration(

@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import {
   setIsAudioActiveAsync,
   setAudioModeAsync,
@@ -44,6 +44,7 @@ type PlayerContextValue = {
   isPlaying: boolean;
   playFromList: (id: string, ids?: string[]) => void;
   toggleCurrent: () => void;
+  seekCurrent: (seconds: number) => Promise<void>;
   pause: () => void;
   next: () => void;
   previous: () => void;
@@ -64,18 +65,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [shouldAutoplay, setShouldAutoplay] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [catalogUrl, setCatalogUrl] = useState("");
+  const [appState, setAppState] = useState<AppStateStatus>(
+    AppState.currentState,
+  );
 
   const currentMedia = useMemo(
     () => library.find((item) => item.id === currentId) ?? null,
     [currentId, library],
   );
-  const audioSource =
-    currentMedia?.kind === "audio" ? { uri: currentMedia.localUri } : null;
+  const audioSource = currentMedia ? { uri: currentMedia.localUri } : null;
   const audioPlayer = useAudioPlayer(audioSource, {
     updateInterval: 500,
     keepAudioSessionActive: true,
   });
   const audioStatus = useAudioPlayerStatus(audioPlayer);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", setAppState);
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     void Promise.all([
@@ -158,6 +166,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [audioPlayer],
   );
 
+  useEffect(() => {
+    if (!currentMedia || currentMedia.kind !== "video") return;
+    if (appState === "active") {
+      audioPlayer.pause();
+      audioPlayer.setActiveForLockScreen(false);
+    } else if (shouldAutoplay) {
+      activateAudioControls(currentMedia);
+      audioPlayer.play();
+    }
+  }, [
+    activateAudioControls,
+    appState,
+    audioPlayer,
+    currentMedia,
+    shouldAutoplay,
+  ]);
+
   const next = useCallback(() => {
     if (!currentId) return;
     const currentIndex = queueIds.indexOf(currentId);
@@ -212,6 +237,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     else audioPlayer.play();
   }, [activateAudioControls, audioPlayer, audioStatus.playing, currentMedia]);
 
+  const seekCurrent = useCallback(
+    (seconds: number) => audioPlayer.seekTo(Math.max(0, seconds)),
+    [audioPlayer],
+  );
+
   const pause = useCallback(() => {
     if (currentMedia?.kind === "audio") {
       audioPlayer.pause();
@@ -221,14 +251,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [audioPlayer, currentMedia?.kind]);
 
   useEffect(() => {
-    if (!currentMedia || currentMedia.kind !== "audio" || !shouldAutoplay)
-      return;
+    if (!currentMedia || !shouldAutoplay) return;
+    if (currentMedia.kind === "video" && appState === "active") return;
     activateAudioControls(currentMedia);
     audioPlayer.play();
     return () => {
       if (Platform.OS !== "web") audioPlayer.setActiveForLockScreen(false);
     };
-  }, [activateAudioControls, audioPlayer, currentMedia, shouldAutoplay]);
+  }, [
+    activateAudioControls,
+    appState,
+    audioPlayer,
+    currentMedia,
+    shouldAutoplay,
+  ]);
 
   useEffect(() => {
     if (audioStatus.didJustFinish) next();
@@ -314,6 +350,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isPlaying: currentMedia?.kind === "audio" ? audioStatus.playing : false,
       playFromList,
       toggleCurrent,
+      seekCurrent,
       pause,
       next,
       previous,
@@ -337,6 +374,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       playFromList,
       previous,
       queueIds,
+      seekCurrent,
       syncCatalog,
       toggleCurrent,
       toggleFavorite,
