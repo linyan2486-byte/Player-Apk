@@ -32,7 +32,7 @@ export function telegramConfigured() { return Boolean(ENV.telegramBotToken && EN
 
 export async function telegramSetWebhook() {
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
-  const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL || (domain ? `https://${domain}/api/telegram/webhook` : "");
+  const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL || (domain ? `https://${domain}/api/telegram/webhook` : "https://player-apk-production.up.railway.app/api/telegram/webhook");
   if (!telegramConfigured() || !webhookUrl) return;
   const { base } = config();
   const body: Record<string, unknown> = { url: webhookUrl, allowed_updates: ["channel_post"] };
@@ -41,7 +41,10 @@ export async function telegramSetWebhook() {
 }
 
 export async function ingestTelegramChannelPost(post: any) {
-  if (!telegramConfigured() || !post?.chat?.id || String(post.chat.id) !== String(ENV.telegramStorageChatId)) return false;
+  const configuredChat = String(ENV.telegramStorageChatId || "").replace(/^@/, "").toLowerCase();
+  const actualChatId = String(post?.chat?.id || "");
+  const actualUsername = String(post?.chat?.username || "").toLowerCase();
+  if (!telegramConfigured() || (!actualChatId || (configuredChat !== actualChatId && configuredChat !== actualUsername))) return false;
   const media = post.video ?? post.audio ?? post.document;
   if (!media?.file_id) return false;
   const kind = post.video || (post.document?.mime_type || "").startsWith("video/") ? "video" : "audio";

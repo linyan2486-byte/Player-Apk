@@ -10,6 +10,7 @@ import { registerAdminWeb } from "../admin-web";
 import { registerStandaloneAuth } from "../standalone-auth";
 import { registerTelegramWebhook } from "../telegram-webhook";
 import { telegramSetWebhook } from "../telegram-storage";
+import { ensureMediaCatalogSchema } from "../db";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 
@@ -33,6 +34,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  await ensureMediaCatalogSchema();
   const app = express();
   const server = createServer(app);
 

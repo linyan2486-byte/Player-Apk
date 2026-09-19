@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertMediaCatalogItem, InsertUser, mediaCatalog, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
@@ -16,6 +16,19 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+export async function ensureMediaCatalogSchema() {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql.raw("ALTER TABLE media_catalog ADD COLUMN thumbnailFileId varchar(256) NULL"));
+    console.log("[Database] Added media_catalog.thumbnailFileId");
+  } catch (error: any) {
+    if (error?.errno !== 1060 && error?.code !== "ER_DUP_FIELDNAME") {
+      console.warn("[Database] Thumbnail compatibility check:", error?.message || error);
+    }
+  }
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
