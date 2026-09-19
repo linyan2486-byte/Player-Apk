@@ -67,6 +67,7 @@ export default function PlayerScreen() {
     item?.kind === "video" ? item.localUri : null,
     (player) => {
       player.timeUpdateEventInterval = 0.5;
+      player.staysActiveInBackground = true;
     },
   );
   const { isPlaying: videoPlaying } = useEvent(videoPlayer, "playingChange", {
