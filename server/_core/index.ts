@@ -62,6 +62,10 @@ async function startServer() {
   registerAdminWeb(app);
   registerOAuthRoutes(app);
 
+  app.get("/", (_req, res) => {
+    res.redirect("/admin");
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, timestamp: Date.now() });
   });
