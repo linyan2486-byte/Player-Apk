@@ -35,7 +35,7 @@ export async function telegramSetWebhook() {
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL || (domain ? `https://${domain}/api/telegram/webhook` : "https://player-apk-production.up.railway.app/api/telegram/webhook");
   if (!telegramConfigured() || !webhookUrl) return;
   const { base } = config();
-  const body: Record<string, unknown> = { url: webhookUrl, allowed_updates: ["channel_post"] };
+  const body: Record<string, unknown> = { url: webhookUrl, allowed_updates: ["channel_post", "message"] };
   if (process.env.TELEGRAM_WEBHOOK_SECRET) body.secret_token = process.env.TELEGRAM_WEBHOOK_SECRET;
   const response = await fetch(`${base}/setWebhook`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const result = await response.json() as any;
@@ -53,8 +53,10 @@ export async function telegramWebhookInfo() {
 
 export async function ingestTelegramChannelPost(post: any) {
   const configuredChat = String(ENV.telegramStorageChatId || "").replace(/^@/, "").toLowerCase();
-  const actualChatId = String(post?.chat?.id || "");
-  const actualUsername = String(post?.chat?.username || "").toLowerCase();
+  const origin = post?.forward_origin?.type === "channel" ? post.forward_origin : null;
+  const sourceChat = origin?.chat || post?.chat;
+  const actualChatId = String(sourceChat?.id || "");
+  const actualUsername = String(sourceChat?.username || "").toLowerCase();
   if (!telegramConfigured() || (!actualChatId || (configuredChat !== actualChatId && configuredChat !== actualUsername))) return false;
   const media = post.video ?? post.audio ?? post.document;
   if (!media?.file_id) return false;
@@ -63,7 +65,8 @@ export async function ingestTelegramChannelPost(post: any) {
   const caption = String(post.caption || "").trim();
   const title = (caption.split("\n")[0] || media.title || fileName.replace(/\.[^/.]+$/, "")).slice(0, 255) || "Untitled";
   const artist = (media.performer || caption.split("\n")[1] || "Mg Flâsh").slice(0, 255);
-  const publicId = `tg-${post.chat.id}-${post.message_id}`;
+  const sourceMessageId = Number(origin?.message_id || post.message_id || 0);
+  const publicId = `tg-${actualChatId}-${sourceMessageId}`;
   if (await db.getMediaByPublicId(publicId)) return true;
   await db.createMediaCatalogItem({
     publicId,
@@ -73,7 +76,7 @@ export async function ingestTelegramChannelPost(post: any) {
     storageKey: `telegram/${media.file_id}`,
     storageProvider: "telegram",
     telegramFileId: media.file_id,
-    telegramMessageId: post.message_id,
+    telegramMessageId: sourceMessageId,
     thumbnailFileId: post.video?.thumbnail?.file_id ?? post.video?.thumb?.file_id ?? null,
     mimeType: media.mime_type || (kind === "video" ? "video/mp4" : "audio/mpeg"),
     fileSize: Number(media.file_size || 0),

@@ -11,7 +11,7 @@ export function registerTelegramWebhook(app: Express) {
     const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
     if (expected && req.header("x-telegram-bot-api-secret-token") !== expected) { res.status(401).json({ error: "Invalid webhook secret" }); return; }
     try {
-      await ingestTelegramChannelPost(req.body?.channel_post);
+      await ingestTelegramChannelPost(req.body?.channel_post || req.body?.message);
       res.json({ ok: true });
     } catch (error) {
       console.error("[TelegramWebhook] ingestion failed:", error);
