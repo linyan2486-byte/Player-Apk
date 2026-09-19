@@ -77,6 +77,9 @@ export default function PlayerScreen() {
   const { isPlaying: videoPlaying } = useEvent(videoPlayer, "playingChange", {
     isPlaying: videoPlayer.playing,
   });
+  const videoStatus = useEvent(videoPlayer, "statusChange", {
+    status: videoPlayer.status,
+  });
   const videoTime = useEvent(videoPlayer, "timeUpdate");
   const videoLoaded = useEvent(videoPlayer, "sourceLoad");
   const lastVideoTapRef = useRef<{
@@ -209,6 +212,34 @@ export default function PlayerScreen() {
               }}
               allowsPictureInPicture
             />
+            {videoStatus.status === "loading" ? (
+              <View
+                pointerEvents="none"
+                className="absolute inset-0 items-center justify-center bg-black/45"
+              >
+                <ActivityIndicator size="large" color="#69c7e8" />
+                <Text className="mt-3 text-sm font-semibold text-white">
+                  Loading video…
+                </Text>
+                <Text className="mt-1 text-xs text-[#c3d0d6]">
+                  Network speed may affect loading time
+                </Text>
+              </View>
+            ) : null}
+            {videoStatus.status === "error" ? (
+              <View
+                pointerEvents="none"
+                className="absolute inset-0 items-center justify-center bg-black/65 px-8"
+              >
+                <MaterialIcons name="error-outline" size={38} color="#ff9aa8" />
+                <Text className="mt-3 text-center text-sm font-semibold text-white">
+                  Video could not be loaded
+                </Text>
+                <Text className="mt-1 text-center text-xs text-[#c3d0d6]">
+                  Check the network or try again later.
+                </Text>
+              </View>
+            ) : null}
             <View
               pointerEvents="box-none"
               className="absolute inset-0 flex-row"
