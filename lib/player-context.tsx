@@ -95,6 +95,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, refreshPublicCatalog]);
 
   useEffect(() => {
+    if (!hydrated) return;
+    const timer = setInterval(() => { void refreshPublicCatalog().catch(() => undefined); }, 30_000);
+    return () => clearInterval(timer);
+  }, [hydrated, refreshPublicCatalog]);
+
+  useEffect(() => {
     void setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: true,

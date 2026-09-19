@@ -37,7 +37,18 @@ export async function telegramSetWebhook() {
   const { base } = config();
   const body: Record<string, unknown> = { url: webhookUrl, allowed_updates: ["channel_post"] };
   if (process.env.TELEGRAM_WEBHOOK_SECRET) body.secret_token = process.env.TELEGRAM_WEBHOOK_SECRET;
-  await fetch(`${base}/setWebhook`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const response = await fetch(`${base}/setWebhook`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const result = await response.json() as any;
+  if (!response.ok || !result.ok) throw new Error(result.description || "Telegram webhook setup failed");
+}
+
+export async function telegramWebhookInfo() {
+  if (!telegramConfigured()) return { configured: false, url: "", pendingUpdateCount: 0, lastError: "Telegram credentials are not configured" };
+  const { base } = config();
+  const response = await fetch(`${base}/getWebhookInfo`);
+  const result = await response.json() as any;
+  if (!response.ok || !result.ok) throw new Error(result.description || "Telegram webhook status failed");
+  return { configured: true, url: result.result?.url || "", pendingUpdateCount: result.result?.pending_update_count || 0, lastError: result.result?.last_error_message || "" };
 }
 
 export async function ingestTelegramChannelPost(post: any) {

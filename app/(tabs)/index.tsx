@@ -1,7 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 
 import { MediaCard } from "@/components/media-card";
 import { MiniPlayer } from "@/components/mini-player";
@@ -10,10 +10,11 @@ import { fuzzyFilter } from "@/lib/search-utils";
 import { usePlayer } from "@/lib/player-context";
 
 export default function HomeScreen() {
-  const { library, hydrated, playFromList, importMedia, toggleFavorite, downloadMedia } = usePlayer();
+  const { library, hydrated, playFromList, importMedia, toggleFavorite, downloadMedia, refreshPublicCatalog } = usePlayer();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<"all" | "video" | "audio">("all");
   const [importing, setImporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const filtered = useMemo(() => {
     const inCategory = category === "all" ? library : library.filter((item) => item.kind === category);
@@ -29,12 +30,17 @@ export default function HomeScreen() {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try { await refreshPublicCatalog(); } finally { setRefreshing(false); }
+  };
+
   return (
     <ScreenContainer className="px-5 pt-3" edges={["top", "left", "right"]}>
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#69c7e8" colors={["#69c7e8"]} />}>
       <View className="flex-row items-center justify-between">
         <View><Text className="text-xs font-semibold uppercase tracking-[3px] text-primary">MG FLÂSH</Text><Text className="mt-2 text-3xl font-bold tracking-tight text-foreground">Watch & listen</Text></View>
-        <Pressable onPress={() => router.push("/(tabs)/settings")} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}><MaterialIcons name="tune" size={25} color="#9ba1a6" /></Pressable>
+        <View className="flex-row items-center gap-4"><Pressable onPress={() => void handleRefresh()} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}><MaterialIcons name="refresh" size={25} color="#9ba1a6" /></Pressable><Pressable onPress={() => router.push("/(tabs)/settings")} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}><MaterialIcons name="tune" size={25} color="#9ba1a6" /></Pressable></View>
       </View>
 
       <View className="mt-6 flex-row items-center rounded-2xl border border-border bg-surface px-4"><MaterialIcons name="search" size={22} color="#7f8c9a" /><TextInput value={query} onChangeText={setQuery} placeholder="Search title, artist, or close match" placeholderTextColor="#71808c" className="ml-2 flex-1 py-4 text-base text-foreground" returnKeyType="search" />{query ? <Pressable onPress={() => setQuery("")} hitSlop={8}><MaterialIcons name="close" size={19} color="#7f8c9a" /></Pressable> : null}</View>
