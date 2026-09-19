@@ -13,10 +13,13 @@ export const ENV = {
   s3AccessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
   s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
   s3PublicBaseUrl: process.env.S3_PUBLIC_BASE_URL ?? "",
-  oauthPortalUrl: process.env.OAUTH_PORTAL_URL ?? process.env.VITE_OAUTH_PORTAL_URL ?? "",
+  oauthPortalUrl:
+    process.env.OAUTH_PORTAL_URL ?? process.env.VITE_OAUTH_PORTAL_URL ?? "",
   oauthAppId: process.env.APP_ID ?? process.env.VITE_APP_ID ?? "",
   adminWebUrl: process.env.ADMIN_WEB_URL ?? "",
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
+  telegramApiBaseUrl:
+    process.env.TELEGRAM_API_BASE_URL ?? "https://api.telegram.org",
   telegramStorageChatId: process.env.TELEGRAM_STORAGE_CHAT_ID ?? "",
   adminUsername: process.env.ADMIN_USERNAME ?? "admin",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",

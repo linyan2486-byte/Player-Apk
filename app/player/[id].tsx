@@ -11,15 +11,16 @@ import { usePlayer } from "@/lib/player-context";
 export default function PlayerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { library, currentMedia, isPlaying, toggleCurrent, pause, next, previous, playFromList, audioStatus } = usePlayer();
-  const item = library.find((entry) => entry.id === id) ?? currentMedia;
+  const routeItem = library.find((entry) => entry.id === id);
+  const item = currentMedia ?? routeItem;
   const videoPlayer = useVideoPlayer(item?.kind === "video" ? item.localUri : null, (player) => {
     player.timeUpdateEventInterval = 0.5;
   });
   const { isPlaying: videoPlaying } = useEvent(videoPlayer, "playingChange", { isPlaying: videoPlayer.playing });
 
   useEffect(() => {
-    if (item && item.id !== currentMedia?.id) playFromList(item.id, library.map((entry) => entry.id));
-  }, [currentMedia?.id, item, library, playFromList]);
+    if (!currentMedia && routeItem) playFromList(routeItem.id, library.map((entry) => entry.id));
+  }, [currentMedia, library, playFromList, routeItem]);
 
   useEffect(() => {
     const subscription = videoPlayer.addListener("playToEnd", () => next());

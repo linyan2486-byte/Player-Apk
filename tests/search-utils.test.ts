@@ -15,4 +15,15 @@ describe("fuzzy media search", () => {
     expect(results[0].title).toBe("Shape of You");
     expect(results.map((item) => item.title)).toContain("Shape of My Heart");
   });
+
+  it("keeps Unicode and Burmese names searchable", () => {
+    const results = fuzzyFilter(
+      [
+        { title: "ညနေခင်း", artist: "Mg Flâsh" },
+        { title: "Morning Light", artist: "Aye Chan" },
+      ],
+      "ညနေ",
+    );
+    expect(results[0].title).toBe("ညနေခင်း");
+  });
 });

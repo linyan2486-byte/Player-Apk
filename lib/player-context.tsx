@@ -1,7 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Platform } from "react-native";
-import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import {
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+} from "expo-audio";
 
 import {
   importLocalMedia,
@@ -10,9 +21,14 @@ import {
   removeLocalMedia,
   saveMediaLibrary,
 } from "@/lib/media-library";
-import { downloadRemoteMedia, fetchPublicCatalog, syncRemoteCatalog } from "@/lib/catalog-sync";
+import {
+  downloadRemoteMedia,
+  fetchPublicCatalog,
+  syncRemoteCatalog,
+} from "@/lib/catalog-sync";
 import { mergePublicCatalog } from "@/lib/catalog-utils";
 import { getApiBaseUrl } from "@/constants/oauth";
+import { requestPlaybackNotificationPermission } from "@/lib/playback-notifications";
 
 const QUEUE_KEY = "@player-apk/queue/v1";
 const CATALOG_URL_KEY = "@player-apk/catalog-url/v1";
@@ -52,7 +68,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     () => library.find((item) => item.id === currentId) ?? null,
     [currentId, library],
   );
-  const audioSource = currentMedia?.kind === "audio" ? { uri: currentMedia.localUri } : null;
+  const audioSource =
+    currentMedia?.kind === "audio" ? { uri: currentMedia.localUri } : null;
   const audioPlayer = useAudioPlayer(audioSource, {
     updateInterval: 500,
     keepAudioSessionActive: true,
@@ -60,14 +77,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const audioStatus = useAudioPlayerStatus(audioPlayer);
 
   useEffect(() => {
-    void Promise.all([loadMediaLibrary(), AsyncStorage.getItem(QUEUE_KEY), AsyncStorage.getItem(CATALOG_URL_KEY)])
+    void Promise.all([
+      loadMediaLibrary(),
+      AsyncStorage.getItem(QUEUE_KEY),
+      AsyncStorage.getItem(CATALOG_URL_KEY),
+    ])
       .then(([items, savedQueue, savedCatalogUrl]) => {
         setLibrary(items);
         setCatalogUrl(savedCatalogUrl ?? "");
         if (savedQueue) {
           try {
             const parsed = JSON.parse(savedQueue) as string[];
-            setQueueIds(parsed.filter((id) => items.some((item) => item.id === id)));
+            setQueueIds(
+              parsed.filter((id) => items.some((item) => item.id === id)),
+            );
           } catch {
             setQueueIds([]);
           }
@@ -81,7 +104,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, library]);
 
   useEffect(() => {
-    if (hydrated) void AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queueIds));
+    if (hydrated)
+      void AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queueIds));
   }, [hydrated, queueIds]);
 
   const refreshPublicCatalog = useCallback(async () => {
@@ -96,7 +120,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    const timer = setInterval(() => { void refreshPublicCatalog().catch(() => undefined); }, 30_000);
+    const timer = setInterval(() => {
+      void refreshPublicCatalog().catch(() => undefined);
+    }, 30_000);
     return () => clearInterval(timer);
   }, [hydrated, refreshPublicCatalog]);
 
@@ -104,9 +130,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     void setAudioModeAsync({
       playsInSilentMode: true,
       shouldPlayInBackground: true,
-      interruptionModeAndroid: "doNotMix",
+      interruptionMode: "doNotMix",
     }).catch(() => undefined);
   }, []);
+
+  const activateAudioControls = useCallback(
+    (item: MediaItem) => {
+      if (Platform.OS === "android")
+        void requestPlaybackNotificationPermission();
+      audioPlayer.setActiveForLockScreen(
+        true,
+        {
+          title: item.title,
+          artist: item.artist,
+          albumTitle: "Mg Flâsh",
+          ...(item.thumbnailUrl ? { artworkUrl: item.thumbnailUrl } : {}),
+        },
+        { showSeekForward: true, showSeekBackward: true },
+      );
+    },
+    [audioPlayer],
+  );
 
   const next = useCallback(() => {
     if (!currentId) return;
@@ -117,13 +161,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setShouldAutoplay(true);
     } else {
       setShouldAutoplay(false);
+      if (currentMedia?.kind === "audio") audioPlayer.pause();
     }
-  }, [currentId, queueIds]);
+  }, [audioPlayer, currentId, currentMedia?.kind, queueIds]);
 
   const previous = useCallback(() => {
     if (!currentId) return;
     const currentIndex = queueIds.indexOf(currentId);
-    const previousId = currentIndex > 0 ? queueIds[currentIndex - 1] : undefined;
+    const previousId =
+      currentIndex > 0 ? queueIds[currentIndex - 1] : undefined;
     if (previousId) {
       setCurrentId(previousId);
       setShouldAutoplay(true);
@@ -134,6 +180,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     (id: string, ids?: string[]) => {
       const nextQueue = ids?.length ? ids : library.map((item) => item.id);
       if (id === currentId && currentMedia?.kind === "audio") {
+        activateAudioControls(currentMedia);
         if (audioStatus.playing) audioPlayer.pause();
         else audioPlayer.play();
         return;
@@ -142,34 +189,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setCurrentId(id);
       setShouldAutoplay(true);
     },
-    [audioPlayer, audioStatus.playing, currentId, currentMedia?.kind, library],
+    [
+      activateAudioControls,
+      audioPlayer,
+      audioStatus.playing,
+      currentId,
+      currentMedia,
+      library,
+    ],
   );
 
   const toggleCurrent = useCallback(() => {
-    if (!currentMedia) return;
-    if (currentMedia.kind === "audio") {
-      if (audioStatus.playing) audioPlayer.pause();
-      else audioPlayer.play();
-    }
-  }, [audioPlayer, audioStatus.playing, currentMedia]);
+    if (!currentMedia || currentMedia.kind !== "audio") return;
+    activateAudioControls(currentMedia);
+    if (audioStatus.playing) audioPlayer.pause();
+    else audioPlayer.play();
+  }, [activateAudioControls, audioPlayer, audioStatus.playing, currentMedia]);
 
   const pause = useCallback(() => {
-    if (currentMedia?.kind === "audio") audioPlayer.pause();
+    if (currentMedia?.kind === "audio") {
+      audioPlayer.pause();
+      audioPlayer.setActiveForLockScreen(false);
+    }
     setShouldAutoplay(false);
   }, [audioPlayer, currentMedia?.kind]);
 
   useEffect(() => {
-    if (!currentMedia || currentMedia.kind !== "audio" || !shouldAutoplay) return;
-    audioPlayer.setActiveForLockScreen(
-      true,
-      { title: currentMedia.title, artist: currentMedia.artist, albumTitle: "Player APK" },
-      { showSeekForward: true, showSeekBackward: true },
-    );
+    if (!currentMedia || currentMedia.kind !== "audio" || !shouldAutoplay)
+      return;
+    activateAudioControls(currentMedia);
     audioPlayer.play();
     return () => {
-      if (Platform.OS !== "web") audioPlayer.clearLockScreenControls();
+      if (Platform.OS !== "web") audioPlayer.setActiveForLockScreen(false);
     };
-  }, [audioPlayer, currentMedia, shouldAutoplay]);
+  }, [activateAudioControls, audioPlayer, currentMedia, shouldAutoplay]);
 
   useEffect(() => {
     if (audioStatus.didJustFinish) next();
@@ -178,7 +231,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const importMedia = useCallback(async () => {
     const imported = await importLocalMedia();
     if (!imported.length) return 0;
-    setLibrary((previousItems) => [...previousItems, ...imported]);
+    setLibrary((previousItems) => [...imported, ...previousItems]);
     return imported.length;
   }, []);
 
@@ -191,6 +244,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setQueueIds((ids) => ids.filter((entry) => entry !== id));
       if (currentId === id) {
         audioPlayer.pause();
+        audioPlayer.setActiveForLockScreen(false);
         setCurrentId(null);
         setShouldAutoplay(false);
       }
@@ -200,26 +254,48 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const toggleFavorite = useCallback(async (id: string) => {
     setLibrary((items) =>
-      items.map((item) => (item.id === id ? { ...item, favorite: !item.favorite } : item)),
+      items.map((item) =>
+        item.id === id ? { ...item, favorite: !item.favorite } : item,
+      ),
     );
   }, []);
 
-  const syncCatalog = useCallback(async (url: string) => {
-    const normalizedUrl = url.trim();
-    if (!normalizedUrl) throw new Error("Catalog URL is required");
-    const merged = await syncRemoteCatalog(library, normalizedUrl);
-    setLibrary(merged);
-    setCatalogUrl(normalizedUrl);
-    await AsyncStorage.setItem(CATALOG_URL_KEY, normalizedUrl);
-    return merged.length;
-  }, [library]);
+  const syncCatalog = useCallback(
+    async (url: string) => {
+      const normalizedUrl = url.trim();
+      if (!normalizedUrl) throw new Error("Catalog URL is required");
+      const merged = await syncRemoteCatalog(library, normalizedUrl);
+      setLibrary(merged);
+      setCatalogUrl(normalizedUrl);
+      await AsyncStorage.setItem(CATALOG_URL_KEY, normalizedUrl);
+      return merged.length;
+    },
+    [library],
+  );
 
-  const downloadMedia = useCallback(async (id: string) => {
-    const item = library.find((entry) => entry.id === id);
-    if (!item?.remoteId || item.offline) return;
-    const saved = await downloadRemoteMedia({ id: item.remoteId, title: item.title, artist: item.artist, kind: item.kind, url: item.localUri, mimeType: item.mimeType, size: item.size }, item);
-    setLibrary((items) => items.map((entry) => entry.id === id ? saved : entry));
-  }, [library]);
+  const downloadMedia = useCallback(
+    async (id: string) => {
+      const item = library.find((entry) => entry.id === id);
+      if (!item?.remoteId || item.offline) return;
+      const saved = await downloadRemoteMedia(
+        {
+          id: item.remoteId,
+          title: item.title,
+          artist: item.artist,
+          kind: item.kind,
+          url: item.localUri,
+          mimeType: item.mimeType,
+          size: item.size,
+          thumbnailUrl: item.thumbnailUrl,
+        },
+        item,
+      );
+      setLibrary((items) =>
+        items.map((entry) => (entry.id === id ? saved : entry)),
+      );
+    },
+    [library],
+  );
 
   const value = useMemo<PlayerContextValue>(
     () => ({
@@ -263,7 +339,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>
+  );
 }
 
 export function usePlayer() {

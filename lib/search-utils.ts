@@ -1,7 +1,12 @@
 export type SearchableMedia = { title: string; artist: string };
 
 function normalize(value: string) {
-  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .toLocaleLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 function subsequenceScore(query: string, target: string) {
@@ -14,7 +19,10 @@ function subsequenceScore(query: string, target: string) {
     gaps += index - cursor;
     cursor = index + 1;
   }
-  return Math.max(0, 100 - gaps * 3 - Math.max(0, target.length - query.length));
+  return Math.max(
+    0,
+    100 - gaps * 3 - Math.max(0, target.length - query.length),
+  );
 }
 
 export function fuzzyScore(query: string, media: SearchableMedia) {
@@ -23,15 +31,26 @@ export function fuzzyScore(query: string, media: SearchableMedia) {
   const title = normalize(media.title);
   const artist = normalize(media.artist);
   if (title === normalizedQuery) return 1000;
-  if (title.startsWith(normalizedQuery)) return 900 - Math.max(0, title.length - normalizedQuery.length);
-  if (title.includes(normalizedQuery)) return 800 - Math.max(0, title.length - normalizedQuery.length);
+  if (title.startsWith(normalizedQuery))
+    return 900 - Math.max(0, title.length - normalizedQuery.length);
+  if (title.includes(normalizedQuery))
+    return 800 - Math.max(0, title.length - normalizedQuery.length);
 
-  const titleScore = subsequenceScore(normalizedQuery.replace(/ /g, ""), title.replace(/ /g, ""));
-  const artistScore = subsequenceScore(normalizedQuery.replace(/ /g, ""), artist.replace(/ /g, ""));
+  const titleScore = subsequenceScore(
+    normalizedQuery.replace(/ /g, ""),
+    title.replace(/ /g, ""),
+  );
+  const artistScore = subsequenceScore(
+    normalizedQuery.replace(/ /g, ""),
+    artist.replace(/ /g, ""),
+  );
   return Math.max(titleScore, artistScore - 20);
 }
 
-export function fuzzyFilter<T extends SearchableMedia>(items: T[], query: string) {
+export function fuzzyFilter<T extends SearchableMedia>(
+  items: T[],
+  query: string,
+) {
   if (!query.trim()) return items;
   return items
     .map((item, index) => ({ item, score: fuzzyScore(query, item), index }))
