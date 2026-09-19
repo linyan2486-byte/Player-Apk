@@ -57,7 +57,8 @@ export async function ingestTelegramChannelPost(post: any) {
   const sourceChat = origin?.chat || post?.chat;
   const actualChatId = String(sourceChat?.id || "");
   const actualUsername = String(sourceChat?.username || "").toLowerCase();
-  if (!telegramConfigured() || (!actualChatId || (configuredChat !== actualChatId && configuredChat !== actualUsername))) return false;
+  const actualTitle = String(sourceChat?.title || "").toLowerCase();
+  if (!telegramConfigured() || (!actualChatId || (configuredChat !== actualChatId && configuredChat !== actualUsername && configuredChat !== actualTitle))) return false;
   const media = post.video ?? post.audio ?? post.document;
   if (!media?.file_id) return false;
   const kind = post.video || (post.document?.mime_type || "").startsWith("video/") ? "video" : "audio";
