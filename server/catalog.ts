@@ -7,8 +7,9 @@ import path from "node:path";
 import * as db from "./db";
 import { sdk } from "./_core/sdk";
 import { storagePut } from "./storage";
+import { telegramConfigured, telegramPut } from "./telegram-storage";
 
-const uploadLimitBytes = Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024 * 1024);
+const uploadLimitBytes = Number(process.env.MAX_UPLOAD_BYTES || (process.env.TELEGRAM_BOT_TOKEN ? 2 * 1024 * 1024 * 1024 : 5 * 1024 * 1024 * 1024));
 const uploadTempDir = path.join(os.tmpdir(), "mg-flash-uploads");
 fs.mkdirSync(uploadTempDir, { recursive: true });
 
@@ -131,7 +132,10 @@ export function registerCatalogRoutes(app: Express) {
         const kind = req.body.kind === "video" ? "video" : "audio";
         const publicId = makePublicId();
         const key = `catalog/${publicId}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
-        const uploaded = await storagePut(key, fs.createReadStream(req.file.path), req.file.mimetype || "application/octet-stream", req.file.size);
+        const telegram = telegramConfigured()
+          ? await telegramPut(req.file.path, req.file.originalname, req.file.mimetype || "application/octet-stream", `${req.body.title || req.file.originalname} | ${req.body.artist || "Mg Flâsh"}`)
+          : null;
+        const uploaded = telegram ? { key: `telegram/${telegram.fileId}`, url: `/manus-storage/telegram/${telegram.fileId}` } : await storagePut(key, fs.createReadStream(req.file.path), req.file.mimetype || "application/octet-stream", req.file.size);
         const title = getTitle(req.file.originalname, req.body.title);
         const artist = String(req.body.artist || "Mg Flâsh").slice(0, 255);
 
@@ -141,6 +145,9 @@ export function registerCatalogRoutes(app: Express) {
           artist,
           kind,
           storageKey: uploaded.key,
+          storageProvider: telegram ? "telegram" : "forge",
+          telegramFileId: telegram?.fileId ?? null,
+          telegramMessageId: telegram?.messageId ?? null,
           mimeType: req.file.mimetype || null,
           fileSize: req.file.size,
           published: 1,

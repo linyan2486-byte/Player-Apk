@@ -16,4 +16,6 @@ export const ENV = {
   oauthPortalUrl: process.env.OAUTH_PORTAL_URL ?? "",
   oauthAppId: process.env.APP_ID ?? process.env.VITE_APP_ID ?? "",
   adminWebUrl: process.env.ADMIN_WEB_URL ?? "",
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
+  telegramStorageChatId: process.env.TELEGRAM_STORAGE_CHAT_ID ?? "",
 };
