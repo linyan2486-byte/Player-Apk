@@ -7,6 +7,7 @@ export type RemoteCatalogItem = {
   id: string;
   title: string;
   artist?: string;
+  contentType?: "music" | "video";
   seriesTitle?: string;
   episodeNumber?: number;
   kind: "audio" | "video";
@@ -24,6 +25,8 @@ function safeName(value: string) {
 function extensionFor(item: RemoteCatalogItem) {
   const urlExtension = item.url.split("?")[0].split(".").pop()?.toLowerCase();
   if (urlExtension && urlExtension.length <= 5) return urlExtension;
+  if (item.mimeType?.includes("mp4")) return "mp4";
+  if (item.mimeType?.includes("webm")) return "webm";
   if (item.kind === "video") return "mp4";
   return "mp3";
 }
@@ -59,6 +62,7 @@ export async function downloadRemoteMedia(
       remoteId: item.id,
       title: item.title,
       artist: item.artist || "Mg Flâsh",
+      contentType: item.contentType,
       seriesTitle: item.seriesTitle,
       episodeNumber: item.episodeNumber,
       kind: item.kind,
@@ -84,6 +88,7 @@ export async function downloadRemoteMedia(
     remoteId: item.id,
     title: item.title,
     artist: item.artist || "Mg Flâsh",
+    contentType: item.contentType,
     seriesTitle: item.seriesTitle,
     episodeNumber: item.episodeNumber,
     kind: item.kind,
@@ -112,6 +117,7 @@ export function mergePublicCatalog(
         ...old,
         title: item.title,
         artist: item.artist || old.artist,
+        contentType: item.contentType,
         seriesTitle: item.seriesTitle,
         episodeNumber: item.episodeNumber,
         thumbnailUrl: item.thumbnailUrl || old.thumbnailUrl,
@@ -124,6 +130,7 @@ export function mergePublicCatalog(
       remoteId: item.id,
       title: item.title,
       artist: item.artist || "Mg Flâsh",
+      contentType: item.contentType,
       seriesTitle: item.seriesTitle,
       episodeNumber: item.episodeNumber,
       kind: item.kind,
@@ -167,6 +174,7 @@ export async function syncRemoteCatalog(
         ...old,
         title: item.title,
         artist: item.artist || old.artist,
+        contentType: item.contentType,
         seriesTitle: item.seriesTitle,
         episodeNumber: item.episodeNumber,
         thumbnailUrl: item.thumbnailUrl || old.thumbnailUrl,
@@ -178,6 +186,7 @@ export async function syncRemoteCatalog(
       remoteId: item.id,
       title: item.title,
       artist: item.artist || "Mg Flâsh catalog",
+      contentType: item.contentType,
       seriesTitle: item.seriesTitle,
       episodeNumber: item.episodeNumber,
       kind: item.kind,

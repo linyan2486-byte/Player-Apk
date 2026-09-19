@@ -6,6 +6,7 @@ import { Platform } from "react-native";
 export { formatBytes } from "@/lib/media-utils";
 
 export type MediaKind = "audio" | "video";
+export type ContentType = "music" | "video";
 
 export type MediaItem = {
   id: string;
@@ -13,6 +14,7 @@ export type MediaItem = {
   offline?: boolean;
   title: string;
   artist: string;
+  contentType?: ContentType;
   seriesTitle?: string;
   episodeNumber?: number;
   kind: MediaKind;

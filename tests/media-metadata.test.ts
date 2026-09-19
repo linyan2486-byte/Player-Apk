@@ -36,6 +36,19 @@ describe("Telegram media metadata", () => {
     });
   });
 
+  it("parses explicit Music type without changing the media container", () => {
+    expect(
+      parseMediaMetadata({
+        caption: "Type: Music\nName: Live Concert MP4\nArtic: Band",
+        fallbackTitle: "video.mp4",
+      }),
+    ).toEqual({
+      title: "Live Concert MP4",
+      artist: "Band",
+      contentType: "music",
+    });
+  });
+
   it("falls back to Telegram audio metadata and a default artist", () => {
     expect(
       parseMediaMetadata({

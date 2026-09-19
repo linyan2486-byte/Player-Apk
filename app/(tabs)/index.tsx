@@ -60,9 +60,17 @@ export default function HomeScreen() {
   };
 
   const openItem = (item: MediaItem, queue: MediaItem[]) => {
+    const contentType =
+      item.contentType ?? (item.kind === "audio" ? "music" : "video");
+    const matchingQueue = queue.filter(
+      (entry) =>
+        entry.kind === item.kind &&
+        (entry.contentType ?? (entry.kind === "audio" ? "music" : "video")) ===
+          contentType,
+    );
     playFromList(
       item.id,
-      queue.map((entry) => entry.id),
+      matchingQueue.map((entry) => entry.id),
     );
     router.push(`/player/${item.id}`);
   };

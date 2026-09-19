@@ -40,6 +40,7 @@ export const mediaCatalog = mysqlTable("media_catalog", {
   artist: varchar("artist", { length: 255 }).default("Mg Flâsh"),
   seriesTitle: varchar("seriesTitle", { length: 255 }),
   episodeNumber: int("episodeNumber"),
+  contentType: mysqlEnum("contentType", ["music", "video"]).default("video"),
   kind: mysqlEnum("kind", ["audio", "video"]).notNull(),
   storageKey: varchar("storageKey", { length: 512 }).notNull(),
   storageProvider: varchar("storageProvider", { length: 32 })

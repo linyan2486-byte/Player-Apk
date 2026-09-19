@@ -1,6 +1,8 @@
 export type ParsedMediaMetadata = {
   title: string;
   artist: string;
+  kind?: "audio" | "video";
+  contentType?: "music" | "video";
   seriesTitle?: string;
   episodeNumber?: number;
 };
@@ -17,6 +19,8 @@ const TITLE_LABEL =
 const ARTIST_LABEL = /^(?:artic|artist|performer|singer|by)\s*[:=-]\s*(.+)$/i;
 const SERIES_LABEL = /^(?:series|ဇာတ်လမ်းတွဲ|ဇာတ်လမ်း)\s*[:=-]\s*(.+)$/i;
 const EPISODE_LABEL = /^(?:episode|ep|အပိုင်း|အတွဲ)\s*[:#=-]?\s*(\d+)/i;
+const TYPE_LABEL =
+  /^(?:type|media|အမျိုးအစား)\s*[:=-]\s*(music|audio|video|movie)/i;
 
 function clean(value: string | undefined, fallback: string, limit = 255) {
   const normalized = value?.replace(/\s+/g, " ").trim();
@@ -54,12 +58,16 @@ export function parseMediaMetadata({
   const labeledEpisode = lines
     .find((line) => EPISODE_LABEL.test(line))
     ?.match(EPISODE_LABEL)?.[1];
+  const labeledType = lines
+    .find((line) => TYPE_LABEL.test(line))
+    ?.match(TYPE_LABEL)?.[1];
   const plainLines = lines.filter(
     (line) =>
       !TITLE_LABEL.test(line) &&
       !ARTIST_LABEL.test(line) &&
       !SERIES_LABEL.test(line) &&
-      !EPISODE_LABEL.test(line),
+      !EPISODE_LABEL.test(line) &&
+      !TYPE_LABEL.test(line),
   );
 
   const title = clean(
@@ -72,10 +80,17 @@ export function parseMediaMetadata({
   );
   const episodeNumber = labeledEpisode ? Number(labeledEpisode) : undefined;
   const seriesTitle = labeledSeries ? clean(labeledSeries, "") : undefined;
+  const contentType =
+    labeledType && /^(?:music|audio)$/i.test(labeledType)
+      ? "music"
+      : labeledType
+        ? "video"
+        : undefined;
 
   return {
     title,
     artist,
+    ...(contentType ? { contentType } : {}),
     ...(seriesTitle ? { seriesTitle } : {}),
     ...(episodeNumber && Number.isFinite(episodeNumber)
       ? { episodeNumber }

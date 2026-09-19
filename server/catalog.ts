@@ -86,6 +86,8 @@ export function registerCatalogRoutes(app: Express) {
           id: item.publicId,
           title: item.title,
           artist: item.artist ?? "Mg Flâsh",
+          contentType:
+            item.contentType ?? (item.kind === "audio" ? "music" : "video"),
           seriesTitle: item.seriesTitle ?? undefined,
           episodeNumber: item.episodeNumber ?? undefined,
           kind: item.kind,
@@ -216,6 +218,7 @@ export function registerCatalogRoutes(app: Express) {
             publicId,
             title,
             artist,
+            contentType: req.body.contentType === "music" ? "music" : "video",
             seriesTitle: req.body.seriesTitle?.trim().slice(0, 255) || null,
             episodeNumber: Number.isFinite(Number(req.body.episodeNumber))
               ? Number(req.body.episodeNumber)
@@ -237,6 +240,7 @@ export function registerCatalogRoutes(app: Express) {
               id: publicId,
               title,
               artist,
+              contentType: req.body.contentType === "music" ? "music" : "video",
               seriesTitle:
                 req.body.seriesTitle?.trim().slice(0, 255) || undefined,
               episodeNumber: Number.isFinite(Number(req.body.episodeNumber))

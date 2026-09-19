@@ -36,6 +36,7 @@ export async function ensureMediaCatalogSchema() {
           artist varchar(255) DEFAULT 'Mg Flâsh',
           seriesTitle varchar(255) NULL,
           episodeNumber int NULL,
+          contentType enum('music','video') NOT NULL DEFAULT 'video',
           kind enum('audio','video') NOT NULL,
           storageKey varchar(512) NOT NULL,
           storageProvider varchar(32) NOT NULL DEFAULT 'forge',
@@ -84,6 +85,7 @@ export async function ensureMediaCatalogSchema() {
   for (const statement of [
     "ALTER TABLE media_catalog ADD COLUMN seriesTitle varchar(255) NULL",
     "ALTER TABLE media_catalog ADD COLUMN episodeNumber int NULL",
+    "ALTER TABLE media_catalog ADD COLUMN contentType enum('music','video') NOT NULL DEFAULT 'video'",
   ]) {
     try {
       await db.execute(sql.raw(statement));

@@ -130,17 +130,20 @@ export async function ingestTelegramChannelPost(post: any) {
   if (!media?.file_id) return false;
 
   const mimeType = String(media.mime_type || "");
-  const kind =
+  const detectedKind =
     post.video || post.animation || mimeType.startsWith("video/")
       ? "video"
       : "audio";
   const fileName =
-    media.file_name || media.title || `${kind}-${post.message_id}`;
+    media.file_name || media.title || `${detectedKind}-${post.message_id}`;
   const metadata = parseMediaMetadata({
     caption: post.caption,
     fallbackTitle: media.title || fileName.replace(/\.[^/.]+$/, ""),
     fallbackArtist: media.performer,
   });
+  const kind = detectedKind;
+  const contentType =
+    metadata.contentType ?? (kind === "audio" ? "music" : "video");
   const sourceMessageId = Number(origin?.message_id || post.message_id || 0);
   const publicId = `tg-${actualChatId}-${sourceMessageId}`;
   const existing = await db.getMediaByPublicId(publicId);
@@ -148,6 +151,8 @@ export async function ingestTelegramChannelPost(post: any) {
     await db.updateMediaCatalogItem(publicId, {
       title: metadata.title,
       artist: metadata.artist,
+      kind,
+      contentType,
       seriesTitle: metadata.seriesTitle ?? null,
       episodeNumber: metadata.episodeNumber ?? null,
     });
@@ -160,6 +165,7 @@ export async function ingestTelegramChannelPost(post: any) {
     artist: metadata.artist,
     seriesTitle: metadata.seriesTitle ?? null,
     episodeNumber: metadata.episodeNumber ?? null,
+    contentType,
     kind,
     storageKey: `telegram/${media.file_id}`,
     storageProvider: "telegram",
