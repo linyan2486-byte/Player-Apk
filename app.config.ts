@@ -74,7 +74,6 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
-    "./plugins/with-audio-playback-service",
     [
       "expo-audio",
       {

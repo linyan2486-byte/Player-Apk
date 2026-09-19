@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { AppState, Platform, type AppStateStatus } from "react-native";
+import { AppState, type AppStateStatus } from "react-native";
 import {
   setIsAudioActiveAsync,
   setAudioModeAsync,
@@ -30,7 +30,6 @@ import {
 } from "@/lib/catalog-sync";
 import { mergePublicCatalog } from "@/lib/catalog-utils";
 import { getApiBaseUrl } from "@/constants/oauth";
-import { requestPlaybackNotificationPermission } from "@/lib/playback-notifications";
 
 const QUEUE_KEY = "@player-apk/queue/v1";
 const CATALOG_URL_KEY = "@player-apk/catalog-url/v1";
@@ -74,9 +73,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     () => library.find((item) => item.id === currentId) ?? null,
     [currentId, library],
   );
-  // Keep one native player instance for the provider lifetime. Recreating it
-  // per track can leave Android's notification bound to a released player.
-  const audioPlayer = useAudioPlayer(null, {
+  const audioSource = currentMedia?.kind === "audio"
+    ? { uri: currentMedia.localUri }
+    : null;
+  const audioPlayer = useAudioPlayer(audioSource, {
     updateInterval: 500,
     keepAudioSessionActive: true,
   });
@@ -116,29 +116,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, library]);
 
   useEffect(() => {
-    if (!currentMedia || currentMedia.kind !== "audio") {
-      audioPlayer.pause();
-      try {
-        audioPlayer.setActiveForLockScreen(false);
-      } catch {
-        // The native player may already be released during a media switch.
-      }
-      return;
-    }
-    try {
-      audioPlayer.replace({ uri: currentMedia.localUri });
-      finishHandledForIdRef.current = null;
-    } catch {
-      // Native source replacement can race an Android activity transition.
-    }
-  }, [
-    audioPlayer,
-    currentMedia?.id,
-    currentMedia?.kind,
-    currentMedia?.localUri,
-  ]);
-
-  useEffect(() => {
     if (hydrated)
       void AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queueIds));
   }, [hydrated, queueIds]);
@@ -174,46 +151,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const activateAudioControls = useCallback(
-    (item: MediaItem) => {
-      if (Platform.OS === "android")
-        void requestPlaybackNotificationPermission();
+    (_item: MediaItem) => {
       void setIsAudioActiveAsync(true).catch(() => undefined);
-      try {
-        audioPlayer.setActiveForLockScreen(
-          true,
-          {
-            title: item.title,
-            artist: item.artist,
-            albumTitle: "Mg Flâsh",
-            ...(item.thumbnailUrl ? { artworkUrl: item.thumbnailUrl } : {}),
-          },
-          {
-            showSeekForward: true,
-            showSeekBackward: true,
-          },
-        );
-      } catch {
-        // A native media session can disappear during an Android activity transition.
-      }
     },
-    [audioPlayer],
+    [],
   );
 
   useEffect(() => {
     if (!currentMedia || currentMedia.kind !== "video") return;
     if (appState === "active") {
       audioPlayer.pause();
-      try {
-        audioPlayer.setActiveForLockScreen(false);
-      } catch {
-        // The native player may already be released during navigation.
-      }
     }
-  }, [
-    appState,
-    audioPlayer,
-    currentMedia,
-  ]);
+  }, [appState, audioPlayer, currentMedia]);
 
   const next = useCallback(() => {
     if (!currentId) return;
@@ -317,11 +266,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const pause = useCallback(() => {
     if (currentMedia?.kind === "audio") {
       audioPlayer.pause();
-      try {
-        audioPlayer.setActiveForLockScreen(false);
-      } catch {
-        // The native player may already be released during navigation.
-      }
     }
     setShouldAutoplay(false);
   }, [audioPlayer, currentMedia?.kind]);
@@ -368,11 +312,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setQueueIds((ids) => ids.filter((entry) => entry !== id));
       if (currentId === id) {
         audioPlayer.pause();
-        try {
-          audioPlayer.setActiveForLockScreen(false);
-        } catch {
-          // The native player may already be released during deletion.
-        }
         setCurrentId(null);
         setShouldAutoplay(false);
       }
