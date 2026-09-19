@@ -32,7 +32,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.1",
+  version: "1.0.2",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
@@ -73,12 +73,12 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "./plugins/with-audio-playback-service",
     [
       "expo-audio",
       {
         microphonePermission:
           "Allow $(PRODUCT_NAME) to access your microphone.",
-        enableBackgroundPlayback: true,
         recordAudioAndroid: false,
       },
     ],

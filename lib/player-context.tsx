@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Platform } from "react-native";
 import {
+  setIsAudioActiveAsync,
   setAudioModeAsync,
   useAudioPlayer,
   useAudioPlayerStatus,
@@ -127,17 +128,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [hydrated, refreshPublicCatalog]);
 
   useEffect(() => {
-    void setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-      interruptionMode: "doNotMix",
-    }).catch(() => undefined);
+    void Promise.all([
+      setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+        interruptionMode: "doNotMix",
+        interruptionModeAndroid: "doNotMix",
+      }),
+      setIsAudioActiveAsync(true),
+    ]).catch(() => undefined);
   }, []);
 
   const activateAudioControls = useCallback(
     (item: MediaItem) => {
       if (Platform.OS === "android")
         void requestPlaybackNotificationPermission();
+      void setIsAudioActiveAsync(true).catch(() => undefined);
       audioPlayer.setActiveForLockScreen(
         true,
         {
