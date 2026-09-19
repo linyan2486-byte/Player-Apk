@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { registerCatalogRoutes } from "../catalog";
+import { registerAdminWeb } from "../admin-web";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 
@@ -58,6 +59,7 @@ async function startServer() {
 
   registerStorageProxy(app);
   registerCatalogRoutes(app);
+  registerAdminWeb(app);
   registerOAuthRoutes(app);
 
   app.get("/api/health", (_req, res) => {

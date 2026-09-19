@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import { getUserByOpenId, upsertUser } from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { ENV } from "./env";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -62,6 +63,22 @@ function buildUserResponse(
 }
 
 export function registerOAuthRoutes(app: Express) {
+  app.get("/api/oauth/login", (req: Request, res: Response) => {
+    if (!ENV.oauthPortalUrl || !ENV.oauthAppId) {
+      res.status(500).send("OAuth is not configured");
+      return;
+    }
+    const origin = `${req.protocol}://${req.get("host")}`;
+    const redirectUri = `${origin}/api/oauth/callback`;
+    const state = Buffer.from(redirectUri, "utf8").toString("base64");
+    const url = new URL(`${ENV.oauthPortalUrl.replace(/\/$/, "")}/app-auth`);
+    url.searchParams.set("appId", ENV.oauthAppId);
+    url.searchParams.set("redirectUri", redirectUri);
+    url.searchParams.set("state", state);
+    url.searchParams.set("type", "signIn");
+    res.redirect(url.toString());
+  });
+
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
@@ -85,7 +102,7 @@ export function registerOAuthRoutes(app: Express) {
 
       // Redirect to the frontend URL (Expo web on port 8081)
       // Cookie is set with parent domain so it works across both 3000 and 8081 subdomains
-      const frontendUrl =
+      const frontendUrl = ENV.adminWebUrl ||
         process.env.EXPO_WEB_PREVIEW_URL ||
         process.env.EXPO_PACKAGER_PROXY_URL ||
         "http://localhost:8081";
